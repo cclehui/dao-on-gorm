@@ -3,8 +3,6 @@ package daoongorm
 import (
 	"context"
 	"sync"
-
-	"git2.qingtingfm.com/infra/qt-boot/pkg/log"
 )
 
 // 模型定义的内存缓存
@@ -28,5 +26,5 @@ func RegisterModel(m Model) {
 
 	modelDefCache[fullName] = modelDef
 
-	log.Infoc(context.Background(), "注册model: %s", fullName)
+	logger.Infoc(context.Background(), "注册model: %s", fullName)
 }

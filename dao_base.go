@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"git2.qingtingfm.com/infra/qt-boot/pkg/log"
 	"github.com/cclehui/dao-on-gorm/internal"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
@@ -54,7 +53,7 @@ func newDaoBaseFull(ctx context.Context, model Model, readOnly bool, tx GormDBCl
 	}
 
 	daoBase := &DaoBase{}
-	daoBase.cacheUtil = nopCacheUtil
+	daoBase.cacheUtil = cacheUtil
 
 	for _, option := range options {
 		option.Apply(daoBase)
@@ -400,7 +399,7 @@ func (daoBase *DaoBase) setCache(ctx context.Context) {
 
 	err := cacheUtil.SetCache(ctx, cacheKey, daoBase.modelImpl, expireTS)
 	if err != nil {
-		log.Errorc(ctx, "dao setCache key:%s error:%+v", cacheKey, err)
+		logger.Errorc(ctx, "dao setCache key:%s error:%+v", cacheKey, err)
 		daoBase.deleteCache(ctx) // 更新失败删除
 	}
 }
@@ -412,7 +411,7 @@ func (daoBase *DaoBase) deleteCache(ctx context.Context) {
 
 	err := cacheUtil.DeleteCache(ctx, cacheKey)
 	if err != nil {
-		log.Errorc(ctx, "dao deleteCache key:%s, error:%+v", cacheKey, err)
+		logger.Errorc(ctx, "dao deleteCache key:%s, error:%+v", cacheKey, err)
 	}
 }
 

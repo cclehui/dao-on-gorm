@@ -5,17 +5,26 @@ import "context"
 type CacheInterface interface {
 	SetCache(ctx context.Context, key string, value interface{}, ttl int) (err error)
 	GetCache(ctx context.Context, key string, value interface{}) (hit bool, err error)
+	DeleteCache(ctx context.Context, key string) (err error)
 }
 
-var nopCacheUtil = &NopCacheUtil{}
+var cacheUtil CacheInterface = &nopCacheUtil{}
 
-type NopCacheUtil struct{}
+func SetCacheUtil(cacheUtil CacheInterface) {
+	cacheUtil = cacheUtil
+}
 
-func (ncu *NopCacheUtil) SetCache(ctx context.Context,
+type nopCacheUtil struct{}
+
+func (ncu *nopCacheUtil) SetCache(ctx context.Context,
 	key string, value interface{}, ttl int) (err error) {
 	return nil
 }
 
-func (ncu *NopCacheUtil) GetCache(ctx context.Context, key string, value interface{}) (hit bool, err error) {
+func (ncu *nopCacheUtil) GetCache(ctx context.Context, key string, value interface{}) (hit bool, err error) {
 	return false, nil
+}
+
+func (ncu *nopCacheUtil) DeleteCache(ctx context.Context, key string) (err error) {
+	return nil
 }

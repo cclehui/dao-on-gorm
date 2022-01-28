@@ -1,17 +1,17 @@
-package database
+package daoongorm
 
 import (
 	"reflect"
 	"strconv"
 	"time"
 
-	"git2.qingtingfm.com/car/car-common/base"
+	"github.com/cclehui/dao-on-gorm/internal"
 	"github.com/pkg/errors"
 )
 
 // dao结构体转 map
 func DaoStructToMap(data interface{}) map[string]interface{} {
-	newMap := base.StructToMap(data)
+	newMap := internal.StructToMap(data)
 
 	if createdAt, ok := newMap["created_at"]; ok {
 		if value, ok2 := createdAt.(time.Time); ok2 {

@@ -1,12 +1,10 @@
-package database
+package daoongorm
 
 import (
 	"fmt"
 	"reflect"
 	"strings"
 
-	"git2.qingtingfm.com/infra/qt-boot/pkg/database/redis"
-	"git2.qingtingfm.com/infra/qt-boot/pkg/database/sql"
 	"github.com/iancoleman/strcase"
 )
 
@@ -14,9 +12,7 @@ import (
 type Model interface {
 	TableName() string
 	DBName() string
-	RedisPool() *redis.Pool
-	DBClient() *sql.OrmDB
-	UseCache() bool
+	DBClient() GormDBClient
 }
 
 // 模型定义

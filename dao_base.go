@@ -1,4 +1,4 @@
-package database
+package daoongorm
 
 import (
 	"context"
@@ -9,11 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"git2.qingtingfm.com/car/car-common/base"
-	rediscache "git2.qingtingfm.com/car/car-common/redis"
-	"git2.qingtingfm.com/infra/qt-boot/pkg/database/redis"
-	"git2.qingtingfm.com/infra/qt-boot/pkg/database/sql"
 	"git2.qingtingfm.com/infra/qt-boot/pkg/log"
+	"github.com/cclehui/dao-on-gorm/internal"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 )
@@ -22,15 +19,20 @@ type DaoBase struct {
 	modelImpl         Model // 模型的实现
 	modelReflectValue reflect.Value
 	modelDef          *ModelDef
-	tx                *sql.OrmDB `gorm:"-" json:"-"`
-	isReadOnly        bool       `gorm:"-" json:"-"`
-	isLoaded          bool       `gorm:"-" json:"-"`
-	isNewRow          bool       `gorm:"-" json:"-"`
 
-	oldDataMap map[string]interface{}
+	tx         GormDBClient `gorm:"-" json:"-"`
+	isReadOnly bool         `gorm:"-" json:"-"`
+	isLoaded   bool         `gorm:"-" json:"-"`
+	isNewRow   bool         `gorm:"-" json:"-"`
+
+	oldDataMap map[string]interface{} // load后的数据
 
 	// option
+	useCache      bool // 是否启用缓存
 	newForceCache bool // 记录不存在是否也缓存
+
+	cacheUtil CacheInterface // 缓存实现
+
 }
 
 func NewDaoBase(ctx context.Context, model Model, readOnly bool, options ...Option) (*DaoBase, error) {
@@ -38,11 +40,11 @@ func NewDaoBase(ctx context.Context, model Model, readOnly bool, options ...Opti
 }
 
 // 支持事务
-func NewDaoBaseWithTX(ctx context.Context, model Model, tx *sql.OrmDB, options ...Option) (*DaoBase, error) {
+func NewDaoBaseWithTX(ctx context.Context, model Model, tx GormDBClient, options ...Option) (*DaoBase, error) {
 	return newDaoBaseFull(ctx, model, false, tx, options...)
 }
 
-func newDaoBaseFull(ctx context.Context, model Model, readOnly bool, tx *sql.OrmDB, options ...Option) (
+func newDaoBaseFull(ctx context.Context, model Model, readOnly bool, tx GormDBClient, options ...Option) (
 	*DaoBase, error) {
 	fullName, v := GetModelFullNameAndValue(model)
 
@@ -52,6 +54,7 @@ func newDaoBaseFull(ctx context.Context, model Model, readOnly bool, tx *sql.Orm
 	}
 
 	daoBase := &DaoBase{}
+	daoBase.cacheUtil = nopCacheUtil
 
 	for _, option := range options {
 		option.Apply(daoBase)
@@ -67,7 +70,7 @@ func newDaoBaseFull(ctx context.Context, model Model, readOnly bool, tx *sql.Orm
 	err := daoBase.Load(ctx)
 
 	// load后的数据 先存成map 可以用于新旧数据比较
-	daoBase.oldDataMap = base.StructToMap(daoBase.modelImpl)
+	daoBase.oldDataMap = internal.StructToMap(daoBase.modelImpl)
 
 	return daoBase, err
 }
@@ -76,16 +79,12 @@ func (daoBase *DaoBase) TableName() string {
 	return daoBase.modelImpl.TableName()
 }
 
-func (daoBase *DaoBase) DBClient() *sql.OrmDB {
+func (daoBase *DaoBase) DBClient() GormDBClient {
 	if daoBase.tx != nil {
 		return daoBase.tx
 	}
 
 	return daoBase.modelImpl.DBClient()
-}
-
-func (daoBase *DaoBase) RedisPool() *redis.Pool {
-	return daoBase.modelImpl.RedisPool()
 }
 
 func (daoBase *DaoBase) Load(ctx context.Context) error {
@@ -102,7 +101,7 @@ func (daoBase *DaoBase) Load(ctx context.Context) error {
 	}
 
 	// 从缓存中获取 只读模式才从缓存中获取
-	if daoBase.modelImpl.UseCache() && daoBase.isReadOnly &&
+	if daoBase.useCache && daoBase.isReadOnly &&
 		daoBase.getFromCache(ctx) {
 		daoBase.isNewRow = false
 		daoBase.isLoaded = true
@@ -145,7 +144,7 @@ func (daoBase *DaoBase) Load(ctx context.Context) error {
 	daoBase.isLoaded = true
 
 	// 写入缓存
-	if daoBase.modelImpl.UseCache() &&
+	if daoBase.useCache &&
 		(!daoBase.isNewRow || daoBase.newForceCache) {
 		daoBase.setCache(ctx)
 	}
@@ -171,7 +170,7 @@ func (daoBase *DaoBase) Create(ctx context.Context) error {
 	daoBase.isLoaded = true
 
 	// 写入缓存 事务情况下不写缓存
-	if daoBase.modelImpl.UseCache() && daoBase.tx == nil {
+	if daoBase.useCache && daoBase.tx == nil {
 		daoBase.setCache(ctx)
 	}
 
@@ -214,7 +213,7 @@ func (daoBase *DaoBase) Update(ctx context.Context) error {
 	}
 
 	// 写入缓存
-	if daoBase.modelImpl.UseCache() {
+	if daoBase.useCache {
 		if daoBase.tx == nil {
 			daoBase.setCache(ctx)
 		} else { // 事务情况下需要删除缓存
@@ -223,6 +222,15 @@ func (daoBase *DaoBase) Update(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// 自动识别创建还是更新
+func (daoBase *DaoBase) Save(ctx context.Context) error {
+	if daoBase.IsNewRow() {
+		return daoBase.Create(ctx)
+	}
+
+	return daoBase.Update(ctx)
 }
 
 func (daoBase *DaoBase) Delete(ctx context.Context) error {
@@ -234,7 +242,7 @@ func (daoBase *DaoBase) Delete(ctx context.Context) error {
 		return errors.New("主键ID为空")
 	}
 
-	var db *sql.OrmDB
+	var db GormDBClient
 	if daoBase.tx != nil {
 		db = daoBase.tx
 	} else {
@@ -254,7 +262,7 @@ func (daoBase *DaoBase) Delete(ctx context.Context) error {
 	}
 
 	// 删除缓存
-	if daoBase.modelImpl.UseCache() {
+	if daoBase.useCache {
 		daoBase.deleteCache(ctx)
 	}
 
@@ -374,7 +382,7 @@ func (daoBase *DaoBase) GetUniqKey() string {
 
 // 从缓存中读取
 func (daoBase *DaoBase) getFromCache(ctx context.Context) bool {
-	cacheUtil := rediscache.NewCacheUtil(daoBase.RedisPool())
+	cacheUtil := daoBase.cacheUtil
 	cacheKey := daoBase.cacheKey()
 
 	if hit, err := cacheUtil.GetCache(ctx, cacheKey, daoBase.modelImpl); hit && err == nil {
@@ -386,7 +394,7 @@ func (daoBase *DaoBase) getFromCache(ctx context.Context) bool {
 
 // 写入缓存
 func (daoBase *DaoBase) setCache(ctx context.Context) {
-	cacheUtil := rediscache.NewCacheUtil(daoBase.RedisPool())
+	cacheUtil := daoBase.cacheUtil
 	cacheKey := daoBase.cacheKey()
 	expireTS := DaoCacheExpire
 
@@ -399,7 +407,7 @@ func (daoBase *DaoBase) setCache(ctx context.Context) {
 
 // 删除缓存
 func (daoBase *DaoBase) deleteCache(ctx context.Context) {
-	cacheUtil := rediscache.NewCacheUtil(daoBase.RedisPool())
+	cacheUtil := daoBase.cacheUtil
 	cacheKey := daoBase.cacheKey()
 
 	err := cacheUtil.DeleteCache(ctx, cacheKey)

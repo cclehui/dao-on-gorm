@@ -1,17 +1,17 @@
-package database
+package daoongorm
 
 import (
 	"fmt"
 	"reflect"
 	"time"
 
-	"git2.qingtingfm.com/car/car-common/base"
+	"github.com/cclehui/dao-on-gorm/internal"
 	"github.com/pkg/errors"
 )
 
 // dao默认转map结构
 func (daoBase *DaoBase) GetDefaultMapView() map[string]interface{} {
-	tempMap := base.StructToMap(daoBase.modelImpl)
+	tempMap := internal.StructToMap(daoBase.modelImpl)
 
 	for _, field := range daoBase.modelDef.Fields {
 		if field.Kind == reflect.Struct {
@@ -47,47 +47,7 @@ func NewDaoBaseNoLoad(model Model) (*DaoBase, error) {
 	daoBase.isNewRow = false
 
 	// load后的数据 先存成map 可以用于新旧数据比较
-	daoBase.oldDataMap = base.StructToMap(daoBase.modelImpl)
+	daoBase.oldDataMap = internal.StructToMap(daoBase.modelImpl)
 
 	return daoBase, nil
 }
-
-// 批量Load dao 只读模式 5个并发
-// err只返回最早出现的error
-/*
-func MultiLoadDaoList(ctx context.Context, modelImplsInterface interface{}) error {
-	modelImplSlice := base.InterfaceToSlice(modelImplsInterface)
-
-	//.errSync := sync.Once{}
-
-	for _, modelImplInterface := range modelImplSlice {
-		modelImpl, ok := modelImplInterface.(Model)
-		if !ok {
-			log.Errorc(ctx, "MultiLoadDaoList, error:%+v",
-				errors.New("非database.Model类型"))
-			continue
-		}
-
-		daoBase, err := NewDaoBase(ctx, modelImpl, true) // 只读模式
-
-		if err != nil {
-			log.Errorc(ctx, "MultiLoadDaoList, error:%+v", errors.WithStack(err))
-			continue
-		}
-
-		modelReflectValue := reflect.ValueOf(modelImpl).Elem()
-
-		daoBaseValue := modelReflectValue.FieldByName("daoBase")
-		if _, ok := daoBaseValue.Interface().(*DaoBase); !ok {
-			log.Errorc(ctx, "MultiLoadDaoList, error:%+v",
-				errors.New(fmt.Sprintf("modelImpl, %#v, daoBase字段异常", modelImpl)))
-			continue
-		}
-
-		daoBaseValue.Set(reflect.ValueOf(daoBase))
-	}
-
-	return nil
-}
-*/
-// TODO

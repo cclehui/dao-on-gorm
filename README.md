@@ -34,6 +34,19 @@ examples 目录下是完成的集成例子， 其中 [examples/dao_test.go](exam
 
 ## 基本使用
 ```
+// 定义表结构
+type CclehuiTestADao struct {
+	ID        int       `gorm:"column:id;primaryKey" structs:"id" json:"id"`
+	Version   int64     `gorm:"column:version" structs:"version" json:"version"`
+	Weight    float64   `gorm:"column:weight;column_default:1.9" structs:"weight" json:"weight"`
+	Age       time.Time `gorm:"column:age" structs:"age" json:"age"`
+	Extra     string    `gorm:"column:extra" structs:"extra" json:"extra"`
+	CreatedAt time.Time `gorm:"column:created_at" structs:"created_at" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at" structs:"updated_at" json:"updated_at"`
+
+	daoBase *daoongorm.DaoBase
+}
+
 // 创建新记录
 testDao, err := NewCclehuiTestADao(ctx, &CclehuiTestADao{}, false)
 testDao.Version = 10

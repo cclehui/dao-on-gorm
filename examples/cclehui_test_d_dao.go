@@ -31,7 +31,7 @@ func NewCclehuiTestDDao(ctx context.Context, myDao *CclehuiTestDDao, readOnly bo
 
 // 支持事务
 func NewCclehuiTestDDaoWithTX(ctx context.Context,
-	myDao *CclehuiTestDDao, tx *DBClientDemo, options ...daoongorm.Option) (*CclehuiTestDDao, error) {
+	myDao *CclehuiTestDDao, tx *daoongorm.DBClient, options ...daoongorm.Option) (*CclehuiTestDDao, error) {
 
 	daoBase, err := daoongorm.NewDaoBaseWithTX(ctx, myDao, tx, options...)
 
@@ -48,7 +48,7 @@ func (myDao *CclehuiTestDDao) TableName() string {
 	return "cclehui_test_d"
 }
 
-func (myDao *CclehuiTestDDao) DBClient() daoongorm.GormDBClient {
+func (myDao *CclehuiTestDDao) DBClient() daoongorm.DBClientInterface {
 	return GetDBClient()
 }
 

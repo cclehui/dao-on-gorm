@@ -1,13 +1,15 @@
 package dao
 
+import daoongorm "github.com/cclehui/dao-on-gorm"
+
 var configFile = "./config_demo.yaml"
 
 var configDemo *ConfigDemo
-var dbClient *DBClientDemo
+var dbClient *daoongorm.DBClient
 var cacheUtil *CacheUtilDemo
 
 // db client
-func GetDBClient() *DBClientDemo {
+func GetDBClient() *daoongorm.DBClient {
 	if dbClient == nil {
 		initBase()
 	}
@@ -42,7 +44,7 @@ func initConfig() {
 }
 
 func initDBClient() {
-	dbClientTmp, err := NewDBClientDemo(configDemo.Mysql.Test)
+	dbClientTmp, err := daoongorm.NewDBClient(configDemo.Mysql.Test)
 	if err != nil {
 		panic(err)
 	}

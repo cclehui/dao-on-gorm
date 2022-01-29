@@ -3,6 +3,7 @@ package dao
 import (
 	"io/ioutil"
 
+	daoongorm "github.com/cclehui/dao-on-gorm"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
@@ -27,7 +28,7 @@ func (c *ConfigDemo) DecodeFromFile(filePath string) (*ConfigDemo, error) {
 }
 
 type Mysql struct {
-	Test *DBClientConfig `yaml:"test"`
+	Test *daoongorm.DBClientConfig `yaml:"test"`
 }
 
 type Redis struct {

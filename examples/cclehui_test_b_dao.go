@@ -32,7 +32,7 @@ func NewCclehuiTestBDao(ctx context.Context, myDao *CclehuiTestBDao, readOnly bo
 
 // 支持事务
 func NewCclehuiTestBDaoWithTX(ctx context.Context,
-	myDao *CclehuiTestBDao, tx *DBClientDemo, options ...daoongorm.Option) (*CclehuiTestBDao, error) {
+	myDao *CclehuiTestBDao, tx *daoongorm.DBClient, options ...daoongorm.Option) (*CclehuiTestBDao, error) {
 	options = append(options,
 		daoongorm.OptionSetFieldNameCreatedAt("CreatedAtNew"),
 		daoongorm.OptionSetFieldNameUpdatedAt("UpdatedAtNew"))
@@ -52,7 +52,7 @@ func (myDao *CclehuiTestBDao) TableName() string {
 	return "cclehui_test_b"
 }
 
-func (myDao *CclehuiTestBDao) DBClient() daoongorm.GormDBClient {
+func (myDao *CclehuiTestBDao) DBClient() daoongorm.DBClientInterface {
 	return GetDBClient()
 }
 

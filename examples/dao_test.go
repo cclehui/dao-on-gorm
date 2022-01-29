@@ -339,7 +339,7 @@ func TestCclehuiTestDao_WithTX(t *testing.T) {
 	fmt.Printf("%s, 事务开始\n", logPrefix)
 
 	var err error
-	err = dbClient.Transaction(ctx, func(ctx context.Context, tx *DBClientDemo) error {
+	err = dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
 		testDaoA, _ = NewCclehuiTestADaoWithTX(ctx, &CclehuiTestADao{}, tx)
 		testDaoA.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
 		testDaoA.Extra = "事务数据:aaaaaaaa"

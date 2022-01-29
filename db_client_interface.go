@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type GormDBClient interface {
+type DBClientInterface interface {
 	Table(ctx context.Context, name string) *gorm.DB         // 读写连接
 	ReadOnlyTable(ctx context.Context, name string) *gorm.DB // 只读连接
 }

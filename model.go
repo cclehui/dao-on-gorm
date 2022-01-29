@@ -12,7 +12,7 @@ import (
 type Model interface {
 	TableName() string
 	DBName() string
-	DBClient() GormDBClient
+	DBClient() DBClientInterface
 	GetDaoBase() *DaoBase
 	SetDaoBase(myDaoBase *DaoBase)
 }

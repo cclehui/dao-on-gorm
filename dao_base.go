@@ -19,11 +19,11 @@ type DaoBase struct {
 	modelReflectValue reflect.Value
 	modelDef          *ModelDef
 
-	tx           GormDBClient `gorm:"-" json:"-"`
-	isReadOnly   bool         `gorm:"-" json:"-"`
-	isLoaded     bool         `gorm:"-" json:"-"`
-	isLoadFromDB bool         `gorm:"-" json:"-"` // 是否是从库中加载
-	isNewRow     bool         `gorm:"-" json:"-"`
+	tx           DBClientInterface `gorm:"-" json:"-"`
+	isReadOnly   bool              `gorm:"-" json:"-"`
+	isLoaded     bool              `gorm:"-" json:"-"`
+	isLoadFromDB bool              `gorm:"-" json:"-"` // 是否是从库中加载
+	isNewRow     bool              `gorm:"-" json:"-"`
 
 	oldDataMap map[string]interface{} // load后的数据
 
@@ -41,11 +41,11 @@ func NewDaoBase(ctx context.Context, model Model, readOnly bool, options ...Opti
 }
 
 // 支持事务
-func NewDaoBaseWithTX(ctx context.Context, model Model, tx GormDBClient, options ...Option) (*DaoBase, error) {
+func NewDaoBaseWithTX(ctx context.Context, model Model, tx DBClientInterface, options ...Option) (*DaoBase, error) {
 	return newDaoBaseFull(ctx, model, false, tx, options...)
 }
 
-func newDaoBaseFull(ctx context.Context, model Model, readOnly bool, tx GormDBClient, options ...Option) (
+func newDaoBaseFull(ctx context.Context, model Model, readOnly bool, tx DBClientInterface, options ...Option) (
 	*DaoBase, error) {
 	fullName, v := GetModelFullNameAndValue(model)
 
@@ -84,7 +84,7 @@ func (daoBase *DaoBase) TableName() string {
 	return daoBase.modelImpl.TableName()
 }
 
-func (daoBase *DaoBase) DBClient() GormDBClient {
+func (daoBase *DaoBase) DBClient() DBClientInterface {
 	if daoBase.tx != nil {
 		return daoBase.tx
 	}
@@ -248,7 +248,7 @@ func (daoBase *DaoBase) Delete(ctx context.Context) error {
 		return errors.New("主键ID为空")
 	}
 
-	var db GormDBClient
+	var db DBClientInterface
 	if daoBase.tx != nil {
 		db = daoBase.tx
 	} else {

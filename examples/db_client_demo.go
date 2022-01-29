@@ -100,6 +100,45 @@ func (db *DBClientDemo) readIndex() int {
 	return int(v)
 }
 
+// 事务函数
+type TransactionFunction func(ctx context.Context, tx *DBClientDemo) error
+
+func (db *DBClientDemo) Transaction(ctx context.Context, tansFunc TransactionFunction) (err error) {
+	transactionCtx, cancel := context.WithTimeout(ctx, time.Duration(db.conf.TranTimeout))
+	defer cancel()
+
+	tx := db.Begin()
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			err = tx.Commit().Error
+		}
+	}()
+
+	txDB := db.clone(tx, []*gorm.DB{tx})
+
+	err = tansFunc(transactionCtx, txDB)
+
+	return err
+}
+
+func (db *DBClientDemo) clone(write *gorm.DB, read []*gorm.DB) *DBClientDemo {
+	return &DBClientDemo{
+		DB:   write,
+		read: read,
+		idx:  0,
+		conf: db.conf,
+	}
+}
+
+func (db *DBClientDemo) GetDBClientConfig() *DBClientConfig {
+	return db.conf
+}
+
 type EndpointConfig struct {
 	Address string `yaml:"address"`
 	Port    int    `yaml:"port"`

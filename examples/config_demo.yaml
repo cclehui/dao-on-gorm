@@ -2,7 +2,7 @@
 redis:
   default:
     server: "127.0.0.1:6379"
-    password: "1234567"
+    password: "123456"
 mysql:
   test:
     dsn:

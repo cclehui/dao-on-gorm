@@ -1,0 +1,36 @@
+
+redis:
+  default:
+    server: "127.0.0.1:6379"
+    password: "1234567"
+mysql:
+  test:
+    dsn:
+      userName: 'cclehui_test'
+      password: '123456'
+      endpoint:
+        address: "127.0.0.1"
+        port: 3306
+      dbName: 'test'
+      options:
+        - 'charset=utf8mb4'
+        - 'parseTime=true'
+        - 'loc=Local'
+    readDSN:
+      - 
+        userName: 'cclehui_test'
+        password: '123456'
+        endpoint:
+          address: "127.0.0.1"
+          port: 3306
+        dbName: 'test'
+        options:
+          - 'charset=utf8mb4'
+          - 'parseTime=true'
+          - 'loc=Local'
+    active: 200
+    idle: 2 
+    idleTimeout: '4h'
+    queryTimeout: '1000ms'
+    execTimeout: '5000ms'
+    tranTimeout: '5000ms'

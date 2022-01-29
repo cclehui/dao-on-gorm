@@ -13,6 +13,8 @@ type Model interface {
 	TableName() string
 	DBName() string
 	DBClient() GormDBClient
+	GetDaoBase() *DaoBase
+	SetDaoBase(myDaoBase *DaoBase)
 }
 
 // 模型定义

@@ -2,14 +2,17 @@ package daoongorm
 
 import "time"
 
-const (
-	DaoCachePrefix = "daocache" // dao缓存key前缀
-	DaoCacheExpire = 86400 * 7  // dao缓存超时时间
+// 全局属性变量 可以配置成自己需要的值
+var (
+	DaoCacheExpire int    = 86400 * 7  // dao缓存超时时间
+	DaoCachePrefix string = "daocache" // dao缓存key前缀
 
-	TypeNameTime = "Time"
-
-	FieldNameCreateAt  = "CreatedAt"
+	FieldNameCreatedAt = "CreatedAt"
 	FieldNameUpdatedAt = "UpdatedAt"
+)
+
+const (
+	TypeNameTime = "Time"
 )
 
 type DBIDInt struct {

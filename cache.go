@@ -8,23 +8,24 @@ type CacheInterface interface {
 	DeleteCache(ctx context.Context, key string) (err error)
 }
 
-var cacheUtil CacheInterface = &nopCacheUtil{}
+var globalCacheUtil CacheInterface = &NopCacheUtil{}
 
-func SetCacheUtil(cacheUtil CacheInterface) {
-	cacheUtil = cacheUtil
+// 设置全局缓存操作util
+func SetGlobalCacheUtil(cacheUtil CacheInterface) {
+	globalCacheUtil = cacheUtil
 }
 
-type nopCacheUtil struct{}
+type NopCacheUtil struct{}
 
-func (ncu *nopCacheUtil) SetCache(ctx context.Context,
+func (ncu *NopCacheUtil) SetCache(ctx context.Context,
 	key string, value interface{}, ttl int) (err error) {
 	return nil
 }
 
-func (ncu *nopCacheUtil) GetCache(ctx context.Context, key string, value interface{}) (hit bool, err error) {
+func (ncu *NopCacheUtil) GetCache(ctx context.Context, key string, value interface{}) (hit bool, err error) {
 	return false, nil
 }
 
-func (ncu *nopCacheUtil) DeleteCache(ctx context.Context, key string) (err error) {
+func (ncu *NopCacheUtil) DeleteCache(ctx context.Context, key string) (err error) {
 	return nil
 }

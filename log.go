@@ -33,6 +33,12 @@ type DefaultLogger struct{}
 
 func (l *DefaultLogger) Errorc(ctx context.Context, format string, args ...interface{}) {
 	content := fmt.Sprintf(format, args...)
-	logStr := json.Marshal(LogData{Level: LevelError, Content: content})
-	fmt.Println(logStr)
+	logStr, _ := json.Marshal(LogData{Level: LevelError, Content: content})
+	fmt.Println(string(logStr))
+}
+
+func (l *DefaultLogger) Infoc(ctx context.Context, format string, args ...interface{}) {
+	content := fmt.Sprintf(format, args...)
+	logStr, _ := json.Marshal(LogData{Level: LevelInfo, Content: content})
+	fmt.Println(string(logStr))
 }

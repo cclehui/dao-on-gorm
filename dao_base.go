@@ -19,19 +19,21 @@ type DaoBase struct {
 	modelReflectValue reflect.Value
 	modelDef          *ModelDef
 
-	tx         GormDBClient `gorm:"-" json:"-"`
-	isReadOnly bool         `gorm:"-" json:"-"`
-	isLoaded   bool         `gorm:"-" json:"-"`
-	isNewRow   bool         `gorm:"-" json:"-"`
+	tx           GormDBClient `gorm:"-" json:"-"`
+	isReadOnly   bool         `gorm:"-" json:"-"`
+	isLoaded     bool         `gorm:"-" json:"-"`
+	isLoadFromDB bool         `gorm:"-" json:"-"` // 是否是从库中加载
+	isNewRow     bool         `gorm:"-" json:"-"`
 
 	oldDataMap map[string]interface{} // load后的数据
 
 	// option
-	useCache      bool // 是否启用缓存
-	newForceCache bool // 记录不存在是否也缓存
-
-	cacheUtil CacheInterface // 缓存实现
-
+	useCache           bool           // 是否启用缓存
+	newForceCache      bool           // 记录不存在是否也缓存
+	cacheUtil          CacheInterface // 缓存具体实现
+	cacheExpireTS      int            // 缓存过期时间戳
+	fieldNameCreatedAt string
+	fieldNameUpdatedAt string
 }
 
 func NewDaoBase(ctx context.Context, model Model, readOnly bool, options ...Option) (*DaoBase, error) {
@@ -53,7 +55,11 @@ func newDaoBaseFull(ctx context.Context, model Model, readOnly bool, tx GormDBCl
 	}
 
 	daoBase := &DaoBase{}
-	daoBase.cacheUtil = cacheUtil
+	daoBase.useCache = true
+	daoBase.cacheUtil = globalCacheUtil
+	daoBase.cacheExpireTS = DaoCacheExpire
+	daoBase.fieldNameCreatedAt = FieldNameCreatedAt
+	daoBase.fieldNameUpdatedAt = FieldNameUpdatedAt
 
 	for _, option := range options {
 		option.Apply(daoBase)
@@ -141,6 +147,7 @@ func (daoBase *DaoBase) Load(ctx context.Context) error {
 	}
 
 	daoBase.isLoaded = true
+	daoBase.isLoadFromDB = true
 
 	// 写入缓存
 	if daoBase.useCache &&
@@ -272,6 +279,10 @@ func (daoBase *DaoBase) IsNewRow() bool {
 	return daoBase.isNewRow
 }
 
+func (daoBase *DaoBase) IsLoadFromDB() bool {
+	return daoBase.isLoadFromDB
+}
+
 func (daoBase *DaoBase) GetOldData() map[string]interface{} {
 	return daoBase.oldDataMap
 }
@@ -395,7 +406,7 @@ func (daoBase *DaoBase) getFromCache(ctx context.Context) bool {
 func (daoBase *DaoBase) setCache(ctx context.Context) {
 	cacheUtil := daoBase.cacheUtil
 	cacheKey := daoBase.cacheKey()
-	expireTS := DaoCacheExpire
+	expireTS := daoBase.cacheExpireTS
 
 	err := cacheUtil.SetCache(ctx, cacheKey, daoBase.modelImpl, expireTS)
 	if err != nil {
@@ -525,7 +536,7 @@ func (daoBase *DaoBase) createAutoFillValue() {
 		switch f.Kind {
 		case reflect.Struct:
 			if fieldTypeName == TypeNameTime &&
-				(f.Name == FieldNameCreateAt || f.Name == FieldNameUpdatedAt) &&
+				(f.Name == daoBase.fieldNameCreatedAt || f.Name == daoBase.fieldNameUpdatedAt) &&
 				isEmptyTime(sf) {
 				now := time.Now()
 				sf.Set(reflect.ValueOf(now))
@@ -554,8 +565,8 @@ func (daoBase *DaoBase) updateAutoFillValue() {
 		switch f.Kind {
 		case reflect.Struct:
 			if fieldTypeName == TypeNameTime &&
-				(f.Name == FieldNameUpdatedAt) &&
-				sf.Interface() == daoBase.oldDataMap["updated_at"] {
+				(f.Name == daoBase.fieldNameUpdatedAt) &&
+				sf.Interface() == daoBase.oldDataMap[f.ColumnName] {
 				now := time.Now()
 				sf.Set(reflect.ValueOf(now))
 			}

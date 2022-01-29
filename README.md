@@ -25,10 +25,10 @@
 examples 目录下是完成的集成例子， 其中 [examples/dao_test.go](examples/dao_test.go) 包含了curd 和事务操作的详细例子
 
 ## 集成方法
-1.dao-on-gorm 本身是基于gorm的，实现上基于[CacheInterface](cache.go) 和[DBClientInterface](db_client_interface.go) 两个interface{}, 
+1. dao-on-gorm 本身是基于gorm的，实现上基于[CacheInterface](cache.go) 和[DBClientInterface](db_client_interface.go) 两个interface{}, 
 所以接入的时候咱们需要实现这两个api才能提供真正的cache 和db操作功能
-2.DBClientInterface 也提供了一种默认的实现 [DBClient](db_client.go) , 也可以直接使用
-3.CacheInterface 需要咱们实现， 实现方式可以参考 [examples/cache_util_demo.go](examples/cache_util_demo.go)
+2. DBClientInterface 也提供了一种默认的实现 [DBClient](db_client.go) , 也可以直接使用
+3. CacheInterface 需要咱们实现， 实现方式可以参考 [examples/cache_util_demo.go](examples/cache_util_demo.go)
 
 具体详细建议读一下 [examples/dao_test.go](examples/dao_test.go) 即可明白
 
@@ -56,9 +56,10 @@ err = testDao.GetDaoBase().Delete(ctx)
 
 ## 特性说明
 [option.go](option.go) 中包含了NewDao中可设置的选项
-1.是否开启缓存
-2.是否在记录不存在时也强制缓存
-3.设置created_at,updated_at 字段名 (默认是created_at，updated_at 可以修改)
+
+1. 是否开启缓存
+2. 是否在记录不存在时也强制缓存
+3. 设置created_at,updated_at 字段名 (默认是created_at，updated_at 可以修改)
 
 设置全局默认的缓存组件[SetGlobalCacheUtil](cache.go)
 

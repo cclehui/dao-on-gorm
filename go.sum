@@ -1,5 +1,5 @@
-github.com/cclehui/redis-util v0.0.1 h1:2q475G9UICK7+ezUKoUQio6okrfI/tE3McDC7eXSM3M=
-github.com/cclehui/redis-util v0.0.1/go.mod h1:b3XCTXao9oJg5GLLw/LmJ7++mbxRHmPU283ATskCWYI=
+github.com/cclehui/redis-util v0.0.2 h1:BfSrBvcpyJ1Ptoopxhs52RTtYqsJMoNa9kMEGG9l9ao=
+github.com/cclehui/redis-util v0.0.2/go.mod h1:b3XCTXao9oJg5GLLw/LmJ7++mbxRHmPU283ATskCWYI=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/fatih/structs v1.1.0 h1:Q7juDM0QtcnhCpeyLGQKyg4TOIghuNXrkL32pHAUMxo=

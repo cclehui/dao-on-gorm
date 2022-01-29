@@ -269,7 +269,7 @@ func TestCclehuiTestDDao_WithCache(t *testing.T) {
 
 	// 创建新记录
 	testDao, err := NewCclehuiTestDDao(ctx,
-		&CclehuiTestDDao{UserID: 100801, ColumnID: 100}, false)
+		&CclehuiTestDDao{UserID: 100801, ColumnID: 101}, false)
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao.GetDaoBase().IsNewRow(), true)

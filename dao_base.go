@@ -395,7 +395,7 @@ func (daoBase *DaoBase) getFromCache(ctx context.Context) bool {
 	cacheUtil := daoBase.cacheUtil
 	cacheKey := daoBase.cacheKey()
 
-	if hit, err := cacheUtil.GetCache(ctx, cacheKey, daoBase.modelImpl); hit && err == nil {
+	if hit, err := cacheUtil.Get(ctx, cacheKey, daoBase.modelImpl); hit && err == nil {
 		return true
 	}
 
@@ -408,7 +408,7 @@ func (daoBase *DaoBase) setCache(ctx context.Context) {
 	cacheKey := daoBase.cacheKey()
 	expireTS := daoBase.cacheExpireTS
 
-	err := cacheUtil.SetCache(ctx, cacheKey, daoBase.modelImpl, expireTS)
+	err := cacheUtil.Set(ctx, cacheKey, daoBase.modelImpl, expireTS)
 	if err != nil {
 		logger.Errorc(ctx, "dao setCache key:%s error:%+v", cacheKey, err)
 		daoBase.deleteCache(ctx) // 更新失败删除
@@ -420,7 +420,7 @@ func (daoBase *DaoBase) deleteCache(ctx context.Context) {
 	cacheUtil := daoBase.cacheUtil
 	cacheKey := daoBase.cacheKey()
 
-	err := cacheUtil.DeleteCache(ctx, cacheKey)
+	err := cacheUtil.Del(ctx, cacheKey)
 	if err != nil {
 		logger.Errorc(ctx, "dao deleteCache key:%s, error:%+v", cacheKey, err)
 	}

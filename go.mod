@@ -3,7 +3,7 @@ module github.com/cclehui/dao-on-gorm
 go 1.16
 
 require (
-	github.com/cclehui/redis-util v0.0.1
+	github.com/cclehui/redis-util v0.0.2
 	github.com/fatih/structs v1.1.0
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/iancoleman/strcase v0.2.0

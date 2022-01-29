@@ -3,8 +3,6 @@ package dao
 // 缓存的实现demo
 
 import (
-	"context"
-
 	redisutil "github.com/cclehui/redis-util"
 	"github.com/gomodule/redigo/redis"
 )
@@ -38,16 +36,4 @@ func NewCacheUtilDemo(redisConfig *RedisConfig) *CacheUtilDemo {
 	}
 
 	return &CacheUtilDemo{RedisUtil: redisutil.NewRedisUtil(redisPool)}
-}
-
-func (cu *CacheUtilDemo) SetCache(ctx context.Context, key string, value interface{}, ttl int) (err error) {
-	return cu.Set(key, value, ttl)
-}
-
-func (cu *CacheUtilDemo) GetCache(ctx context.Context, key string, value interface{}) (hit bool, err error) {
-	return cu.Get(key, value)
-}
-
-func (cu *CacheUtilDemo) DeleteCache(ctx context.Context, key string) (err error) {
-	return cu.Del(key)
 }

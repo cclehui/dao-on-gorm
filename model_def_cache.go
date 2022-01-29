@@ -26,5 +26,5 @@ func RegisterModel(m Model) {
 
 	modelDefCache[fullName] = modelDef
 
-	logger.Infoc(context.Background(), "注册model: %s", fullName)
+	logger.Infof(context.Background(), "注册model: %s", fullName)
 }

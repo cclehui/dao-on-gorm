@@ -31,22 +31,26 @@ func NewDBClient(c *DBClientConfig) (*DBClient, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	ormDB.DB = d
 
 	if len(c.ReadDSN) == 0 {
 		c.ReadDSN = []*DSNConfig{c.DSN}
 	}
+
 	rs := make([]*gorm.DB, 0, len(c.ReadDSN))
+
 	for _, rd := range c.ReadDSN {
 		d, err := connectGORM(c, rd)
 		if err != nil {
 			return nil, err
 		}
+
 		rs = append(rs, d)
 
 		ormDB.read = rs
-
 	}
+
 	return ormDB, nil
 }
 
@@ -70,17 +74,20 @@ func (db *DBClient) getCurrentDB(isReadOnly bool) *gorm.DB {
 	if isReadOnly {
 		return db.ReadOnly()
 	}
+
 	return db.DB
 }
 
 // ReadOnly 获取只读连接
 func (db *DBClient) ReadOnly() *gorm.DB {
 	idx := db.readIndex()
+
 	for i := range db.read {
 		if rd := db.read[(idx+i)%len(db.read)]; rd != nil {
 			return rd
 		}
 	}
+
 	return db.DB
 }
 
@@ -89,8 +96,10 @@ func (db *DBClient) readIndex() int {
 	if len(db.read) == 0 {
 		return 0
 	}
+
 	v := atomic.AddInt64(&db.idx, 1) % int64(len(db.read))
 	atomic.StoreInt64(&db.idx, v)
+
 	return int(v)
 }
 
@@ -102,6 +111,7 @@ func (db *DBClient) Transaction(ctx context.Context, tansFunc TransactionFunctio
 	defer cancel()
 
 	tx := db.Begin()
+
 	defer func() {
 		if p := recover(); p != nil {
 			tx.Rollback()
@@ -150,15 +160,18 @@ func connectGORM(c *DBClientConfig, dsnConfig *DSNConfig) (*gorm.DB, error) {
 	d, err := gorm.Open(mysql.Open(concatConnectURI(dsnConfig)), &gorm.Config{
 		Logger: loggergorm.Default.LogMode(loggergorm.Info),
 	})
+
 	if err != nil {
 		err = errors.WithStack(err)
 		return nil, err
 	}
+
 	rawDB, err := d.DB()
 	if err != nil {
 		err = errors.WithStack(err)
 		return nil, err
 	}
+
 	rawDB.SetMaxOpenConns(c.Active)
 	rawDB.SetMaxIdleConns(c.Idle)
 	rawDB.SetConnMaxLifetime(time.Duration(c.IdleTimeout))

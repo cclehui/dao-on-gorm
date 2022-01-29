@@ -410,7 +410,7 @@ func (daoBase *DaoBase) setCache(ctx context.Context) {
 
 	err := cacheUtil.Set(ctx, cacheKey, daoBase.modelImpl, expireTS)
 	if err != nil {
-		logger.Errorc(ctx, "dao setCache key:%s error:%+v", cacheKey, err)
+		logger.Errorf(ctx, "dao setCache key:%s error:%+v", cacheKey, err)
 		daoBase.deleteCache(ctx) // 更新失败删除
 	}
 }
@@ -422,7 +422,7 @@ func (daoBase *DaoBase) deleteCache(ctx context.Context) {
 
 	err := cacheUtil.Del(ctx, cacheKey)
 	if err != nil {
-		logger.Errorc(ctx, "dao deleteCache key:%s, error:%+v", cacheKey, err)
+		logger.Errorf(ctx, "dao deleteCache key:%s, error:%+v", cacheKey, err)
 	}
 }
 

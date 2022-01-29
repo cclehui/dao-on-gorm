@@ -59,7 +59,7 @@ err = testDao.GetDaoBase().Delete(ctx)
 
 1. 是否开启缓存
 2. 是否在记录不存在时也强制缓存
-3. 设置created_at,updated_at 字段名 (默认是created_at，updated_at 可以修改)
+3. 设置created_at,updated_at 字段名 (默认是created_at，updated_at 可以修改),该字段的值会自动填充
 
 设置全局默认的缓存组件[SetGlobalCacheUtil](cache.go)
 

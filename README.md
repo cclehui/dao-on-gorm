@@ -1,264 +1,65 @@
-# dao-on-gorm
-基于gorm 的数据操作封装，cache 缓存、事务支持
-
-## 特殊功能说明
-1. 自动传入gin.Ctx, 根据body json格式参数是否传某个键值自动填充dao中的数据, 见 gin_util.go -> UpdateDaoByGinCtxJSON
-2. 自动转map view , 其中对time.Time类型自动转换成  2006-01-02 15:04:05  格式 , daoBase.GetDefaultMapView()
-3. 提供获取一个库一个表某行记录的唯一字符串ID  , daoBase.GetUniqKey()
-
-## 修改说明
-2021-07-30 增加数据库中没有记录的情况下，读取也可以强制缓存功能, OptionNewForceCache(true) 即可
+## dao-on-gorm
+轻量级的基于gorm 的针对单条数据操作curd封装，操作方便， 同时基于主键对数据做了自动缓存cache，大大降低数据库压力， 事务和非事务操作模式基本一致
 
 
-## 测试表结构
-```
-
-CREATE TABLE `cclehui_test_a` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
-  `version` int(10) unsigned NOT NULL DEFAULT '99',
-  `weight` decimal(10,2) unsigned NOT NULL DEFAULT '0.00',
-  `age` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `extra` varchar(255) NOT NULL DEFAULT '',
-  `created_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',
-  `updated_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '更新时间',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='测试表a';
-
-// 非ID主键
-
-CREATE TABLE `cclehui_test_b` (
-  `column_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
-  `version` int(10) unsigned NOT NULL DEFAULT '99',
-  `weight` decimal(10,2) unsigned NOT NULL DEFAULT '0.00',
-  `age` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `extra` varchar(255) NOT NULL DEFAULT '',
-  `created_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',
-  `updated_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '更新时间',
-  PRIMARY KEY (`column_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='测试表a';
-
-// 非自增主键
-CREATE TABLE `cclehui_test_c` (
-  `column_id` int(10) unsigned NOT NULL COMMENT 'id',
-  `version` int(10) unsigned NOT NULL DEFAULT '99',
-  `weight` decimal(10,2) unsigned NOT NULL DEFAULT '0.00',
-  `age` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `extra` varchar(255) NOT NULL DEFAULT '',
-  `created_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',
-  `updated_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '更新时间',
-  PRIMARY KEY (`column_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='测试表a';
-
-// 联合主键
-CREATE TABLE `cclehui_test_d` (
-  `user_id` int(10) unsigned NOT NULL COMMENT 'id',
-  `column_id` int(10) unsigned NOT NULL COMMENT 'id',
-  `version` int(10) unsigned NOT NULL DEFAULT '99',
-  `weight` decimal(10,2) unsigned NOT NULL DEFAULT '0.00',
-  `age` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `extra` varchar(255) NOT NULL DEFAULT '',
-  `created_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',
-  `updated_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '更新时间',
-  PRIMARY KEY (`user_id`,`column_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='测试表a';
-```
-
-## 测试 dao实现定义例子
-
-###
-1.primaryKey;primary_key  标识主键, 有两个是兼容gorm v1 和v2
-2.column_default 列的默认值
-3.CreatedAt ,UpdatedAt 会自动填充, 修改的之后可以指定 UpdatedAt , 这时候不会自动填充
-
-```
-type CclehuiTestADao struct {
-	// ID int `gorm:"column:id;primaryKey" structs:"id" json:"id"`
-	// UserID    int       `gorm:"column:user_id;primaryKey" structs:"user_id" json:"user_id"`
-	ColumnID  int       `gorm:"column:column_id;primaryKey;primary_key" structs:"column_id" json:"column_id"`
-	Version   int64     `gorm:"column:version" structs:"version" json:"version"`
-	Weight    float64   `gorm:"column:weight;column_default:1.9" structs:"weight" json:"weight"`
-	Age       time.Time `gorm:"column:age" structs:"age" json:"age"`
-	Extra     string    `gorm:"column:extra" structs:"extra" json:"extra"`
-	CreatedAt time.Time `gorm:"column:created_at" structs:"created_at" json:"created_at"`
-	UpdatedAt time.Time `gorm:"column:updated_at" structs:"updated_at" json:"updated_at"`
-
-	daoBase *DaoBase
-}
-
-func init() {
-	RegisterModel(&CclehuiTestADao{})
-}
-
-func NewCclehuiTestADao(ctx context.Context, myDao *CclehuiTestADao, readOnly bool) (*CclehuiTestADao, error) {
-	daoBase, err := NewDaoBase(ctx, myDao, readOnly)
-
-	myDao.daoBase = daoBase
-
-	return myDao, err
-}
-
-// 支持事务
-func NewCclehuiTestADaoWithTX(ctx context.Context,
-	myDao *CclehuiTestADao, tx *sql.OrmDB) (*CclehuiTestADao, error) {
-
-	daoBase, err := NewDaoBaseWithTX(ctx, myDao, tx)
-
-	myDao.daoBase = daoBase
-
-	return myDao, err
-}
-
-func (myDao *CclehuiTestADao) DBName() string {
-	return "fmot"
-}
-
-func (myDao *CclehuiTestADao) TableName() string {
-	// return "cclehui_test_a"
-	return "cclehui_test_b"
-	// return "cclehui_test_c"
-	// return "cclehui_test_d"
-}
-
-func (myDao *CclehuiTestADao) RedisPool() *redis.Pool {
-	return global.GetDao().GetRedisCarAPI()
-}
-
-func (myDao *CclehuiTestADao) DBClient() *sql.OrmDB {
-	return global.GetDao().GetMysqlFmot()
-}
-
-func (myDao *CclehuiTestADao) Create(ctx context.Context) error {
-	return myDao.daoBase.Create(ctx)
-}
-
-func (myDao *CclehuiTestADao) Update(ctx context.Context) error {
-	return myDao.daoBase.Update(ctx)
-}
-
-func (myDao *CclehuiTestADao) Save(ctx context.Context) error {
-	if myDao.IsNewRow() {
-		return myDao.Create(ctx)
-	}
-
-	return myDao.Update(ctx)
-}
-
-func (myDao *CclehuiTestADao) Delete(ctx context.Context) error {
-	return myDao.daoBase.Delete(ctx)
-}
-
-func (myDao *CclehuiTestADao) IsNewRow() bool {
-	return myDao.daoBase.IsNewRow()
-}
-
-func (myDao *CclehuiTestADao) UseCache() bool {
-	return true
-}
+## 使用体验
+1. 在 [examples/config_demo.yaml](examples/config_demo.yaml) 下配置自己的redis 和 mysql连接信息
+2. 在你的mysql库中导入sql: [examples/sql.md](examples/sql.md)
+3. go test -v ./...  即可运行项目的单测，就可以看到数据操作的日志信息
 
 
 ```
+[5.619ms] [rows:1] INSERT INTO `cclehui_test_b` (`version`,`weight`,`age`,`extra`,`created_at_new`,`updated_at_new`) VALUES (10,1.900000,'1989-03-18 10:24:32','字符串数据:bbbbbbbbbbbbbbb','2022-01-29 18:02:10.639','2022-01-29 18:02:10.639')
+非ID为主键key的表, create 测试成功, ID:15, : map[age:1989-03-18 10:24:32 column_id:15 created_at_new:2022-01-29 18:02:10 extra:字符串数据:bbbbbbbbbbbbbbb updated_at_new:2022-01-29 18:02:10 version:10 weight:1.9]
 
-## 测试的controler 代码参考
+[0.492ms] [rows:1] SELECT * FROM `cclehui_test_b` WHERE `column_id` = 15 LIMIT 1
 
-```
-type ThemeController struct{}
+[3.759ms] [rows:1] UPDATE `cclehui_test_b` SET `age`='1989-03-18 18:24:32',`created_at_new`='2022-01-29 18:02:11',`extra`='字符串数据:bbbbbbbbbbbbbbb',`updated_at_new`='2022-01-29 18:02:11.647',`version`=10,`weight`=1.900000 WHERE `column_id` = 15
+非ID为主键key的表, 自定义created_at,upadted_at字段名 测试成功
 
-func (controller *ThemeController) Test(ctx *gin.Context) {
-
-	// 表1
-
-	/*
-					testDao := &dataversion.CclehuiTestADao{}
-					testDao.Age = time.Now()
-					testDao, _ = dataversion.NewCclehuiTestADao(ctx, testDao, false)
-					err := testDao.Save(ctx)
-
-					fmt.Printf("创建记录, err:%+v, %+v\n", err, testDao)
-
-
-				testDao := &dataversion.CclehuiTestADao{ID: 1}
-				testDao, err := dataversion.NewCclehuiTestADao(ctx, testDao, true)
-				fmt.Printf("查询记录, err:%+v, %+v\n", err, testDao)
-
-			testDao := &dataversion.CclehuiTestADao{ID: 1}
-			testDao, err := dataversion.NewCclehuiTestADao(ctx, testDao, false)
-			fmt.Printf("修改前, err:%+v, %+v\n", err, testDao)
-			 testDao.Version = 100
-			 testDao.Extra = "xxxxx"
-			testDao.Version = 0
-			testDao.Extra = ""
-			err = testDao.Save(ctx)
-			fmt.Printf("修改后, err:%+v, %+v\n", err, testDao)
-		testDao := &dataversion.CclehuiTestADao{ID: 1}
-		testDao, err := dataversion.NewCclehuiTestADao(ctx, testDao, false)
-		fmt.Printf("删除前, err:%+v, %+v\n", err, testDao)
-		err = testDao.Delete(ctx)
-		fmt.Printf("删除后, err:%+v, %+v\n", err, testDao)
-	*/
-
-	// 表2 主键非ID命名
-	/*
-			testDao := &dataversion.CclehuiTestADao{}
-			testDao.Age = time.Now()
-			testDao, _ = dataversion.NewCclehuiTestADao(ctx, testDao, false)
-			testDao.DisableCache()
-			err := testDao.Save(ctx)
-
-		fmt.Printf("创建记录, 表2, err:%+v, %+v\n", err, testDao)
-	*/
-
-	id := ginextend.QueryInt(ctx, "id")
-	readOnly := ginextend.QueryBool(ctx, "read_only")
-	deleteData := ginextend.QueryBool(ctx, "delete_data")
-	addData := ginextend.QueryBool(ctx, "add_data")
-	testDao := &dataversion.CclehuiTestADao{ColumnID: id}
-	testDao, _ = dataversion.NewCclehuiTestADao(ctx, testDao, readOnly)
-	testDao.Age = time.Now()
-
-	if testDao.IsNewRow() {
-		fmt.Printf("记录不存在\n")
-		if addData {
-			err := testDao.Save(ctx)
-
-			fmt.Printf("创建记录, 表2, err:%+v, %+v\n", err, testDao)
-		}
-	} else {
-		if readOnly {
-			fmt.Printf("查询记录, %+v\n", testDao)
-		} else if deleteData {
-			err := testDao.Delete(ctx)
-
-			fmt.Printf("删除记录, err:%+v, %+v\n", err, testDao)
-
-		} else {
-			err := testDao.Save(ctx)
-
-			fmt.Printf("更新记录, err:%+v, %+v\n", err, testDao)
-		}
-	}
-
-	// 非自增主键
-	/*
-		testDao := &dataversion.CclehuiTestADao{ColumnID: 10}
-		testDao.Age = time.Now()
-		testDao, _ = dataversion.NewCclehuiTestADao(ctx, testDao, false)
-		err := testDao.Save(ctx)
-		fmt.Printf("创建记录, 表3, 非自增主键, err:%+v, %+v\n", err, testDao)
-	*/
-
-	// 联合主键
-	/*
-		testDao := &dataversion.CclehuiTestADao{UserID: 1001, ColumnID: 10}
-		testDao.Age = time.Now()
-		// testDao, _ = dataversion.NewCclehuiTestADao(ctx, testDao, false)
-		// err := testDao.Save(ctx)
-		// fmt.Printf("创建记录, 表4, 联合主键, err:%+v, %+v\n", err, testDao)
-		testDao, err := dataversion.NewCclehuiTestADao(ctx, testDao, true)
-		fmt.Printf("查询记录, 表4, 联合主键, err:%+v, %+v\n", err, testDao)
-	*/
-
-	response.StandardJSON(ctx, "aaaa", nil)
-
-}
+[3.133ms] [rows:1] DELETE FROM `cclehui_test_b` WHERE `cclehui_test_b`.`column_id` = 15
 
 ```
+
+
+examples 目录下是完成的集成例子， 其中 [examples/dao_test.go](examples/dao_test.go) 包含了curd 和事务操作的详细例子
+
+## 集成方法
+1.dao-on-gorm 本身是基于gorm的，实现上基于[CacheInterface](cache.go) 和[DBClientInterface](db_client_interface.go) 两个interface{}, 
+所以接入的时候咱们需要实现这两个api才能提供真正的cache 和db操作功能
+2.DBClientInterface 也提供了一种默认的实现 [DBClient](db_client.go) , 也可以直接使用
+3.CacheInterface 需要咱们实现， 实现方式可以参考 [examples/cache_util_demo.go](examples/cache_util_demo.go)
+
+具体详细建议读一下 [examples/dao_test.go](examples/dao_test.go) 即可明白
+
+## 基本使用
+```
+// 创建新记录
+testDao, err := NewCclehuiTestADao(ctx, &CclehuiTestADao{}, false)
+testDao.Version = 10
+testDao.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
+testDao.Extra = "字符串数据:11111aa"
+err = testDao.GetDaoBase().Save(ctx)
+
+// 从从库查询数据(一行搞定)
+testDao, err := NewCclehuiTestADao(ctx, &CclehuiTestADao{ID:1}, true)
+
+// 更新数据
+testDao, err := NewCclehuiTestADao(ctx, &CclehuiTestADao{ID:1}, false)
+testDao.Version = 21
+err = testDao.GetDaoBase().Save(ctx)
+
+// 删除数据
+err = testDao.GetDaoBase().Delete(ctx)
+
+```
+
+## 特性说明
+[option.go](option.go) 中包含了NewDao中可设置的选项
+1.是否开启缓存
+2.是否在记录不存在时也强制缓存
+3.设置created_at,updated_at 字段名 (默认是created_at，updated_at 可以修改)
+
+设置全局默认的缓存组件[SetGlobalCacheUtil](cache.go)
+
+

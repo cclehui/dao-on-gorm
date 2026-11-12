@@ -345,11 +345,26 @@ func (daoBase *DaoBase) PKFieldsStr() string {
 	return strings.Join(pkValues, "_")
 }
 
+// cacheKey 拼缓存 key: [package_prefix:]daocache:db:table:pk.
+//
+// 空段会被跳过, 所以 DaoCachePackagePrefix 为空时和旧版本的 key 完全一致,
+// 升级不会导致已有缓存整体失效.
 func (daoBase *DaoBase) cacheKey() string {
-	dbName := daoBase.modelImpl.DBName()
-	tableName := daoBase.TableName()
+	parts := make([]string, 0, 5)
 
-	return fmt.Sprintf("%s:%s:%s:%s", DaoCachePrefix, dbName, tableName, daoBase.PKFieldsStr())
+	for _, part := range []string{
+		DaoCachePackagePrefix,
+		DaoCachePrefix,
+		daoBase.modelImpl.DBName(),
+		daoBase.TableName(),
+		daoBase.PKFieldsStr(),
+	} {
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+
+	return strings.Join(parts, ":")
 }
 
 func (daoBase *DaoBase) GetUniqKey() string {

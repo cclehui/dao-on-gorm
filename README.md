@@ -91,4 +91,19 @@ UpdatedAt time.Time `gorm:"column:updated_at;precision:6"` // datetime(6)
 
 设置全局默认的缓存组件[SetGlobalCacheUtil](cache.go)
 
+## 缓存 key 前缀
+
+key 结构为 `[package_prefix:]daocache:<db>:<table>:<pk>`:
+
+- `DaoCachePrefix` 是组件级前缀, 默认 `daocache`
+- `DaoCachePackagePrefix` 是包/服务级前缀, 默认空; 多个服务共用同一个 redis 时用它隔离
+
+```go
+daoongorm.SetDaoCachePackagePrefix("identity_hub")
+// key: identity_hub:daocache:identity_hub_test:user_groups:1
+```
+
+前缀为空时 key 和旧版本完全一致 (不会产生 `::`), 升级不会让已有缓存失效。
+`GetUniqKey()` 是业务唯一标识, 不受缓存前缀影响。
+
 

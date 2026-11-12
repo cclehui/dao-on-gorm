@@ -1,117 +1,280 @@
-## dao-on-gorm
-轻量级的基于gorm 的针对单条数据操作curd封装，操作方便， 同时基于主键对数据做了自动缓存cache，大大降低数据库压力， 事务和非事务操作模式基本一致
+# dao-on-gorm
 
+[English](./README.en.md) | 简体中文
 
-## 使用体验
-1. 在 [examples/config_demo.yaml](examples/config_demo.yaml) 下配置自己的redis 和 mysql连接信息
-2. 在你的mysql库中导入sql: [examples/sql.md](examples/sql.md)
-3. go test -v ./...  即可运行项目的单测，就可以看到数据操作的日志信息
+[![Go Version](https://img.shields.io/badge/go-1.21%2B-00ADD8?logo=go)](https://go.dev/)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
+`dao-on-gorm` 是构建在 [gorm](https://gorm.io/) 之上的**单行 DAO** 封装：
 
-```
-[5.619ms] [rows:1] INSERT INTO `cclehui_test_b` (`version`,`weight`,`age`,`extra`,`created_at_new`,`updated_at_new`) VALUES (10,1.900000,'1989-03-18 10:24:32','字符串数据:bbbbbbbbbbbbbbb','2022-01-29 18:02:10.639','2022-01-29 18:02:10.639')
-非ID为主键key的表, create 测试成功, ID:15, : map[age:1989-03-18 10:24:32 column_id:15 created_at_new:2022-01-29 18:02:10 extra:字符串数据:bbbbbbbbbbbbbbb updated_at_new:2022-01-29 18:02:10 version:10 weight:1.9]
+> 一个 struct 绑定一行数据，`DaoBase` 负责按主键完成 `Load / Create / Update / Save / Delete`，
+> 并自动处理主键维度的缓存与 `created_at` / `updated_at` 填充。
 
-[0.492ms] [rows:1] SELECT * FROM `cclehui_test_b` WHERE `column_id` = 15 LIMIT 1
-
-[3.759ms] [rows:1] UPDATE `cclehui_test_b` SET `age`='1989-03-18 18:24:32',`created_at_new`='2022-01-29 18:02:11',`extra`='字符串数据:bbbbbbbbbbbbbbb',`updated_at_new`='2022-01-29 18:02:11.647',`version`=10,`weight`=1.900000 WHERE `column_id` = 15
-非ID为主键key的表, 自定义created_at,upadted_at字段名 测试成功
-
-[3.133ms] [rows:1] DELETE FROM `cclehui_test_b` WHERE `cclehui_test_b`.`column_id` = 15
-
-```
-
-
-examples 目录下是完成的集成例子， 其中 [examples/dao_test.go](examples/dao_test.go) 包含了curd 和事务操作的详细例子
-
-## 集成方法
-1. dao-on-gorm 本身是基于gorm的，实现上基于[CacheInterface](cache.go) 和[DBClientInterface](db_client_interface.go) 两个interface{}, 
-所以接入的时候咱们需要实现这两个api才能提供真正的cache 和db操作功能
-2. DBClientInterface 也提供了一种默认的实现 [DBClient](db_client.go) , 也可以直接使用
-3. CacheInterface 需要咱们实现， 实现方式可以参考 [examples/cache_util_demo.go](examples/cache_util_demo.go)
-
-具体详细建议读一下 [examples/dao_test.go](examples/dao_test.go) 即可明白
-
-## 基本使用
-```
-// 定义表结构
-type CclehuiTestADao struct {
-	ID        int       `gorm:"column:id;primaryKey" structs:"id" json:"id"`
-	Version   int64     `gorm:"column:version" structs:"version" json:"version"`
-	Weight    float64   `gorm:"column:weight;column_default:1.9" structs:"weight" json:"weight"`
-	Age       time.Time `gorm:"column:age" structs:"age" json:"age"`
-	Extra     string    `gorm:"column:extra" structs:"extra" json:"extra"`
-	CreatedAt time.Time `gorm:"column:created_at;precision:3" structs:"created_at" json:"created_at"`
-	UpdatedAt time.Time `gorm:"column:updated_at;precision:3" structs:"updated_at" json:"updated_at"`
-
-	daoBase *daoongorm.DaoBase
-}
-
-// 创建新记录
-testDao, err := NewCclehuiTestADao(ctx, &CclehuiTestADao{}, false)
-testDao.Version = 10
-testDao.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
-testDao.Extra = "字符串数据:11111aa"
-err = testDao.GetDaoBase().Save(ctx)
-
-// 从从库查询数据(一行搞定)
-testDao, err := NewCclehuiTestADao(ctx, &CclehuiTestADao{ID:1}, true)
-
-// 更新数据
-testDao, err := NewCclehuiTestADao(ctx, &CclehuiTestADao{ID:1}, false)
-testDao.Version = 21
-err = testDao.GetDaoBase().Save(ctx)
-
-// 删除数据
-err = testDao.GetDaoBase().Delete(ctx)
-
-```
-
-## 时间列精度 (precision)
-
-`created_at` / `updated_at` 自动填充的是 `time.Now()`, 纳秒精度. 如果建表用的是
-`datetime(3)`, 落库会截断到毫秒, 内存里的值和库里的值就对不上 (影响字段变化判断和审计时间).
-
-按列声明 gorm 原生的 `precision`, 自动填充时会先按该精度四舍五入 (与 MySQL 写库行为一致):
+调用方不再手写 `WHERE` 条件，也不需要在业务代码里散落缓存逻辑。
 
 ```go
-CreatedAt time.Time `gorm:"column:created_at;precision:3"` // datetime(3)
-UpdatedAt time.Time `gorm:"column:updated_at;precision:6"` // datetime(6)
+user, err := NewUserDao(ctx, &User{ID: 1}, false)
+if err != nil {
+    return err
+}
+
+user.Name = "connor"
+return user.GetDaoBase().Save(ctx) // 自动识别 Insert / Update
 ```
 
-不声明 `precision` 就不做任何处理, 原样交给 gorm/driver (默认行为, 兼容老代码).
-精度是列属性, 不同表可以不同, 不需要全局配置.
+## 特性
 
-## 特性说明
+- **单行语义**：一个 DAO = 一行，按主键读写，不涉及列表/条件查询。
+- **构造即加载**：`NewDaoBase` 自动 `Load`，构造成功后 `IsNewRow()` 立即可用。
+- **自动时间戳**：`created_at` / `updated_at` 零值时自动填充，并支持按列精度归一化。
+- **部分更新**：`Save` 只更新真正变化的非主键列，避免并发场景互相覆盖。
+- **主键缓存**：读单行优先命中缓存，写操作自动失效；默认不缓存，可插拔 `CacheInterface`。
+- **事务安全**：事务内 `FOR UPDATE` 锁行，缓存失效延迟到 `COMMIT` 之后。
+- **读写分离**：`DBClient` 内置只读副本轮询与事务 clone，DAO 层无感知。
+- **可扩展**：`CacheInterface` / `DBClientInterface` 均可自定义实现。
 
-[option.go](option.go) 中包含了 NewDao 可设置的选项：
+## 安装
 
-1. 是否开启缓存（`OptionSetUseCache`）
-2. 是否在记录不存在时也强制缓存（`OptionNewForceCache`）
-3. 指定 `created_at` / `updated_at` 的**字段名**（默认 `CreatedAt` / `UpdatedAt`），这两个字段会自动填充
-4. 覆盖缓存实现与 TTL（`OptionSetCacheUtil` / `OptionSetCacheExpireTS`）
+```bash
+go get github.com/cclehui/dao-on-gorm
+```
 
-设置全局默认的缓存组件 [SetGlobalCacheUtil](cache.go)。
+要求 Go `1.21+`，`gorm.io/gorm v1.31.2` 与 `gorm.io/driver/mysql v1.6.0`。
 
-## 文档
+## 快速开始
 
-- [AGENTS.md](AGENTS.md) — 协作约定、兼容性红线、本地验证方式
-- [harness/coding_style.md](harness/coding_style.md) — 代码约束
-- [harness/knowledge/](harness/knowledge) — 架构、模型、CRUD 语义、缓存、DBClient、测试
+### 1. 定义模型
 
-## 缓存 key 前缀
+```go
+type User struct {
+    ID        int64     `gorm:"column:id;primaryKey" structs:"id" json:"id"`
+    Name      string    `gorm:"column:name" structs:"name" json:"name"`
+    CreatedAt time.Time `gorm:"column:created_at;precision:3" structs:"created_at" json:"created_at"`
+    UpdatedAt time.Time `gorm:"column:updated_at;precision:3" structs:"updated_at" json:"updated_at"`
 
-key 结构为 `[package_prefix:]daocache:<db>:<table>:<pk>`:
+    daoBase *daoongorm.DaoBase
+}
 
-- `DaoCachePrefix` 是组件级前缀, 默认 `daocache`
-- `DaoCachePackagePrefix` 是包/服务级前缀, 默认空; 多个服务共用同一个 redis 时用它隔离
+func (u *User) TableName() string { return "users" }
+func (u *User) DBName() string    { return "test" }
+
+func (u *User) DBClient() daoongorm.DBClientInterface { return GetDBClient() }
+func (u *User) GetDaoBase() *daoongorm.DaoBase        { return u.daoBase }
+func (u *User) SetDaoBase(base *daoongorm.DaoBase)    { u.daoBase = base }
+```
+
+### 2. 注册模型
+
+模型必须在进程启动阶段注册，`NewDaoBase` 依赖注册期解析出的元数据：
+
+```go
+func init() {
+    daoongorm.RegisterModel(&User{})
+}
+```
+
+未注册的模型会直接返回 `模型未注册, <type>`；缺少主键、列名重复等编码错误会在注册期 panic。
+
+### 3. 构造入口
+
+```go
+func NewUserDao(ctx context.Context, user *User, readOnly bool,
+    options ...daoongorm.Option) (*User, error) {
+
+    base, err := daoongorm.NewDaoBase(ctx, user, readOnly, options...)
+    user.daoBase = base
+    return user, err
+}
+
+func NewUserDaoWithTX(ctx context.Context, user *User, tx *daoongorm.DBClient,
+    options ...daoongorm.Option) (*User, error) {
+
+    base, err := daoongorm.NewDaoBaseWithTX(ctx, user, tx, options...)
+    user.daoBase = base
+    return user, err
+}
+```
+
+`NewDaoBase` 构造时会立即 `Load`：
+
+| 入参 | 行为 |
+|---|---|
+| 主键为空 | 不查库，按 `column_default` 填充默认值，`IsNewRow() == true` |
+| 主键非空 + `readOnly=true` | 优先读缓存，未命中读只读副本 |
+| 主键非空 + `readOnly=false` | 读主库；事务内使用 `FOR UPDATE` |
+
+### 4. 增删改查
+
+```go
+ctx := context.Background()
+
+// Create：主键为空 → Save 走 Insert
+user, err := NewUserDao(ctx, &User{Name: "connor"}, false)
+if err != nil {
+    return err
+}
+err = user.GetDaoBase().Save(ctx)
+// user.ID 已回填，IsNewRow() == false
+
+// Load：按主键读取（readOnly=true 走缓存 + 只读副本）
+user, err = NewUserDao(ctx, &User{ID: 1}, true)
+
+// Update：只提交变化列，updated_at 自动 touch
+user.Name = "new name"
+err = user.GetDaoBase().Save(ctx)
+
+// Delete：按主键物理删除，并失效缓存
+err = user.GetDaoBase().Delete(ctx)
+```
+
+> `Save` 在未显式修改 `updated_at` 时会将其更新为当前时间，因此即使业务字段未变也会产生一条只更新
+> `updated_at` 的 SQL —— 这是本库既有约定。
+
+### 5. 事务
+
+```go
+err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
+    user, err := NewUserDaoWithTX(ctx, &User{ID: 1}, tx)
+    if err != nil {
+        return err
+    }
+
+    user.Name = "connor"
+    return user.GetDaoBase().Save(ctx)
+})
+```
+
+- 事务内**必须**使用 `NewDaoBaseWithTX` / `NewXxxDaoWithTX`，否则会走主库非事务连接，不受回滚保护。
+- 事务内读取单行会加 `FOR UPDATE` 行锁。
+- 缓存失效注册到 `AddAfterCommit`，`COMMIT` 成功后才执行；回滚时缓存保持原值。
+
+## 缓存
+
+缓存按主键保存**整行结构体**，只作用于“按主键读单行”这条路径，列表与条件查询不经过该缓存。
+默认实现为 `NopCacheUtil`，即不缓存。
+
+```go
+type CacheInterface interface {
+    Set(ctx context.Context, key string, value interface{}, ttl int) error
+    Get(ctx context.Context, key string, value interface{}) (hit bool, error)
+    Del(ctx context.Context, key string) error
+}
+```
+
+全局注入或按 DAO 覆盖：
+
+```go
+daoongorm.SetGlobalCacheUtil(myCache)
+
+user, err := NewUserDao(ctx, &User{ID: 1}, true,
+    daoongorm.OptionSetCacheUtil(myCache),
+    daoongorm.OptionSetCacheExpireTS(3600),
+)
+```
+
+**Key 结构**：`[package_prefix:]daocache:<db>:<table>:<pk>`
+
+- `DaoCachePrefix`：组件级前缀，默认 `daocache`。
+- `DaoCachePackagePrefix`：服务级命名空间，默认空；多个服务共用 Redis 时用于隔离。
+- 空段会被跳过，因此升级到带前缀版本不会导致既有缓存整体失效。
+- `GetUniqKey()` 返回 `db:table:pk`，是业务唯一标识，**不含**缓存前缀。
 
 ```go
 daoongorm.SetDaoCachePackagePrefix("identity_hub")
 // key: identity_hub:daocache:identity_hub_test:user_groups:1
 ```
 
-前缀为空时 key 和旧版本完全一致 (不会产生 `::`), 升级不会让已有缓存失效。
-`GetUniqKey()` 是业务唯一标识, 不受缓存前缀影响。
+**负缓存**：`OptionNewForceCache(true)` 会把“查不到的行”也写入缓存，默认关闭；开启后需保证新增行能及时失效。
 
+## 时间列精度
 
+`created_at` / `updated_at` 自动填充的是纳秒精度的 `time.Now()`。若建表使用 `datetime(3)`，
+直接落库会被截断/舍入，导致内存值与库中值不一致。按列声明 gorm 原生 `precision` 即可在填充时先行归一化：
+
+```go
+CreatedAt time.Time `gorm:"column:created_at;precision:3"` // datetime(3)
+UpdatedAt time.Time `gorm:"column:updated_at;precision:6"` // datetime(6)
+```
+
+不声明 `precision` 时不做任何处理，值原样交给 gorm/driver（与旧版本行为一致）。
+
+## 配置项
+
+[option.go](./option.go) 提供 `NewDaoBase` 级别的选项：
+
+| Option | 说明 |
+|---|---|
+| `OptionSetUseCache` | 是否启用缓存，默认 `true`（需配合 `CacheInterface`） |
+| `OptionNewForceCache` | 记录不存在时是否也缓存，默认 `false` |
+| `OptionSetCacheUtil` | 覆盖该 DAO 使用的缓存实现 |
+| `OptionSetCacheExpireTS` | 覆盖缓存 TTL（秒），默认 7 天 |
+| `OptionSetFieldNameCreatedAt` | 自定义 `created_at` 字段名，默认 `CreatedAt` |
+| `OptionSetFieldNameUpdatedAt` | 自定义 `updated_at` 字段名，默认 `UpdatedAt` |
+
+包级全局配置：
+
+```go
+daoongorm.DaoCacheExpire = 86400 * 7      // 默认 TTL
+daoongorm.SetGlobalCacheUtil(myCache)     // 全局缓存实现
+daoongorm.SetDaoCachePackagePrefix("app") // 缓存 key 命名空间
+```
+
+`DBClient` 支持主从 DSN、连接池、超时与日志级别：
+
+```yaml
+mysql:
+  test:
+    dsn: { userName: 'user', password: 'pass', endpoint: { address: '127.0.0.1', port: 3306 }, dbName: 'test' }
+    readDSN: []          # 只读副本，空则复用主库
+    active: 200
+    idle: 2
+    idleTimeout: '4h'
+    queryTimeout: '1000ms' # → driver readTimeout
+    execTimeout: '5000ms'  # → driver writeTimeout
+    tranTimeout: '5000ms'  # → 事务超时
+    logLevel: 'warn'       # silent / error / warn / info
+```
+
+## 示例与测试
+
+```bash
+# 单元测试：不依赖任何外部服务
+go build ./... && go vet ./... && go test .
+
+# 集成测试：需要真实 MySQL + redis
+go test ./examples/ -v
+```
+
+[examples/](./examples) 是完整的集成示例：
+
+- [examples/dao_test.go](./examples/dao_test.go)：CRUD、缓存、事务
+- [examples/cache_util_demo.go](./examples/cache_util_demo.go)：基于 redigo 的 `CacheInterface` 实现
+- [examples/config_demo.yaml](./examples/config_demo.yaml)：MySQL / redis 连接配置
+- [examples/sql.md](./examples/sql.md)：测试表结构
+
+运行集成测试前请导入建表 SQL，并按实际环境修改 `examples/config_demo.yaml`（默认连本地 3306）。
+
+## 文档
+
+- [AGENTS.md](./AGENTS.md) — 协作约定、兼容性红线、本地验证方式
+- [harness/coding_style.md](./harness/coding_style.md) — 代码约束
+- [harness/knowledge/architecture.md](./harness/knowledge/architecture.md) — 分层与调用链路
+- [harness/knowledge/data_model.md](./harness/knowledge/data_model.md) — 模型与注册规则
+- [harness/knowledge/crud.md](./harness/knowledge/crud.md) — CRUD 精确语义
+- [harness/knowledge/cache.md](./harness/knowledge/cache.md) — 缓存策略与 Key 结构
+- [harness/knowledge/db_client.md](./harness/knowledge/db_client.md) — 连接、事务、超时
+- [harness/knowledge/testing.md](./harness/knowledge/testing.md) — 测试与本地容器
+
+## 兼容性
+
+本库被多个业务服务引用，**向后兼容优先**。以下行为属于对外契约，变更前需评估影响：
+
+- `Save` 在主键为空时走 `Create`，否则走 `Update`。
+- 未显式修改 `updated_at` 时，`Save` 会将其 touch 到当前时间。
+- 只读 DAO 上的写操作返回错误，不静默降级。
+- 默认缓存 key 格式 `daocache:<db>:<table>:<pk>` 保持不变。
+- 事务内不写缓存，缓存失效只在 `COMMIT` 之后执行。
+
+## License
+
+[MIT](./LICENSE)

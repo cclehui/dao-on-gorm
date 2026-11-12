@@ -8,8 +8,8 @@ CREATE TABLE `cclehui_test_a` (
   `weight` decimal(10,2) unsigned NOT NULL DEFAULT '0.00' COMMENT 'test',
   `age` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT 'test',
   `extra` varchar(255) NOT NULL DEFAULT '' COMMENT 'test',
-  `created_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',
-  `updated_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '更新时间',
+  `created_at` datetime(3) NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',
+  `updated_at` datetime(3) NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '更新时间',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='测试表';
 
@@ -20,8 +20,8 @@ CREATE TABLE `cclehui_test_b` (
   `weight` decimal(10,2) unsigned NOT NULL DEFAULT '0.00' COMMENT 'test',
   `age` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT 'test',
   `extra` varchar(255) NOT NULL DEFAULT '' COMMENT 'test',
-  `created_at_new` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',
-  `updated_at_new` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '更新时间',
+  `created_at_new` datetime(3) NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',
+  `updated_at_new` datetime(3) NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '更新时间',
   PRIMARY KEY (`column_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4  COMMENT='测试表：非ID主键';
 
@@ -32,8 +32,8 @@ CREATE TABLE `cclehui_test_c` (
   `weight` decimal(10,2) unsigned NOT NULL DEFAULT '0.00' COMMENT 'test',
   `age` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT 'test',
   `extra` varchar(255) NOT NULL DEFAULT '' COMMENT 'test',
-  `created_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',
-  `updated_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '更新时间',
+  `created_at` datetime(3) NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',
+  `updated_at` datetime(3) NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '更新时间',
   PRIMARY KEY (`column_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='测试表：非自增主键';
 
@@ -45,8 +45,8 @@ CREATE TABLE `cclehui_test_d` (
   `weight` decimal(10,2) unsigned NOT NULL DEFAULT '0.00' COMMENT 'test',
   `age` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT 'test',
   `extra` varchar(255) NOT NULL DEFAULT '' COMMENT 'test',
-  `created_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',
-  `updated_at` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '更新时间',
+  `created_at` datetime(3) NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',
+  `updated_at` datetime(3) NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '更新时间',
   PRIMARY KEY (`user_id`,`column_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='测试表：联合主键';
 

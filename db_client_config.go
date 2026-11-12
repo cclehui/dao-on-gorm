@@ -15,12 +15,14 @@ type DBClientConfig struct {
 	Idle int `yaml:"idle"`
 	// 闲置超时时间
 	IdleTimeout ctime.Duration `yaml:"idleTimeout"`
-	// 查询超时时间
+	// 查询超时时间: 落到 driver 的 readTimeout
 	QueryTimeout ctime.Duration `yaml:"queryTimeout"`
-	// 执行超时时间
+	// 执行超时时间: 落到 driver 的 writeTimeout
 	ExecTimeout ctime.Duration `yaml:"execTimeout"`
 	// 事务超时时间
 	TranTimeout ctime.Duration `yaml:"tranTimeout"`
+	// gorm 日志级别: silent / error / warn / info, 空值按 warn
+	LogLevel string `yaml:"logLevel"`
 }
 
 type EndpointConfig struct {

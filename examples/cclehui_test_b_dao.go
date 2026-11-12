@@ -13,8 +13,8 @@ type CclehuiTestBDao struct {
 	Weight       float64   `gorm:"column:weight;column_default:1.9" structs:"weight" json:"weight"`
 	Age          time.Time `gorm:"column:age" structs:"age" json:"age"`
 	Extra        string    `gorm:"column:extra" structs:"extra" json:"extra"`
-	CreatedAtNew time.Time `gorm:"column:created_at_new" structs:"created_at_new" json:"created_at_new"`
-	UpdatedAtNew time.Time `gorm:"column:updated_at_new" structs:"updated_at_new" json:"updated_at_new"`
+	CreatedAtNew time.Time `gorm:"column:created_at_new;precision:3" structs:"created_at_new" json:"created_at_new"`
+	UpdatedAtNew time.Time `gorm:"column:updated_at_new;precision:3" structs:"updated_at_new" json:"updated_at_new"`
 
 	daoBase *daoongorm.DaoBase
 }

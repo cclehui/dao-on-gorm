@@ -1,6 +1,6 @@
 module github.com/cclehui/dao-on-gorm
 
-go 1.16
+go 1.21
 
 require (
 	github.com/cclehui/redis-util v0.0.2
@@ -11,6 +11,16 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.7.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	gorm.io/driver/mysql v1.2.3
-	gorm.io/gorm v1.22.5
+	gorm.io/driver/mysql v1.6.0
+	gorm.io/gorm v1.31.2
+)
+
+require (
+	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/davecgh/go-spew v1.1.0 // indirect
+	github.com/go-sql-driver/mysql v1.8.1 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	golang.org/x/text v0.20.0 // indirect
 )

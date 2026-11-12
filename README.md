@@ -41,8 +41,8 @@ type CclehuiTestADao struct {
 	Weight    float64   `gorm:"column:weight;column_default:1.9" structs:"weight" json:"weight"`
 	Age       time.Time `gorm:"column:age" structs:"age" json:"age"`
 	Extra     string    `gorm:"column:extra" structs:"extra" json:"extra"`
-	CreatedAt time.Time `gorm:"column:created_at" structs:"created_at" json:"created_at"`
-	UpdatedAt time.Time `gorm:"column:updated_at" structs:"updated_at" json:"updated_at"`
+	CreatedAt time.Time `gorm:"column:created_at;precision:3" structs:"created_at" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at;precision:3" structs:"updated_at" json:"updated_at"`
 
 	daoBase *daoongorm.DaoBase
 }
@@ -66,6 +66,21 @@ err = testDao.GetDaoBase().Save(ctx)
 err = testDao.GetDaoBase().Delete(ctx)
 
 ```
+
+## 时间列精度 (precision)
+
+`created_at` / `updated_at` 自动填充的是 `time.Now()`, 纳秒精度. 如果建表用的是
+`datetime(3)`, 落库会截断到毫秒, 内存里的值和库里的值就对不上 (影响字段变化判断和审计时间).
+
+按列声明 gorm 原生的 `precision`, 自动填充时会先按该精度四舍五入 (与 MySQL 写库行为一致):
+
+```go
+CreatedAt time.Time `gorm:"column:created_at;precision:3"` // datetime(3)
+UpdatedAt time.Time `gorm:"column:updated_at;precision:6"` // datetime(6)
+```
+
+不声明 `precision` 就不做任何处理, 原样交给 gorm/driver (默认行为, 兼容老代码).
+精度是列属性, 不同表可以不同, 不需要全局配置.
 
 ## 特性说明
 [option.go](option.go) 中包含了NewDao中可设置的选项

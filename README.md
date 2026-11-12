@@ -83,13 +83,21 @@ UpdatedAt time.Time `gorm:"column:updated_at;precision:6"` // datetime(6)
 精度是列属性, 不同表可以不同, 不需要全局配置.
 
 ## 特性说明
-[option.go](option.go) 中包含了NewDao中可设置的选项
 
-1. 是否开启缓存
-2. 是否在记录不存在时也强制缓存
-3. 设置created_at,updated_at 字段名 (默认是created_at，updated_at 可以修改),该字段的值会自动填充
+[option.go](option.go) 中包含了 NewDao 可设置的选项：
 
-设置全局默认的缓存组件[SetGlobalCacheUtil](cache.go)
+1. 是否开启缓存（`OptionSetUseCache`）
+2. 是否在记录不存在时也强制缓存（`OptionNewForceCache`）
+3. 指定 `created_at` / `updated_at` 的**字段名**（默认 `CreatedAt` / `UpdatedAt`），这两个字段会自动填充
+4. 覆盖缓存实现与 TTL（`OptionSetCacheUtil` / `OptionSetCacheExpireTS`）
+
+设置全局默认的缓存组件 [SetGlobalCacheUtil](cache.go)。
+
+## 文档
+
+- [AGENTS.md](AGENTS.md) — 协作约定、兼容性红线、本地验证方式
+- [harness/coding_style.md](harness/coding_style.md) — 代码约束
+- [harness/knowledge/](harness/knowledge) — 架构、模型、CRUD 语义、缓存、DBClient、测试
 
 ## 缓存 key 前缀
 

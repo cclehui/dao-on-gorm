@@ -92,4 +92,5 @@ err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClien
 - 参数收成一个 `XxxParams` struct：新增条件时不用改方法签名，调用方也看得懂每个字段含义。
 - `LIKE` 的用户输入必须转义 `%` / `_` / `\`，否则 `a_b` 会匹配 `axb`，`%` 会变成"匹配所有"。
   统一用 `utils.SQLUtil.LikeContains(...)` + `escape '\'`，不要在 selector 里自己拼。
+  注意这是**匹配语义**问题；注入防护靠绑定参数，见 [sql_injection.md](./sql_injection.md)。
 

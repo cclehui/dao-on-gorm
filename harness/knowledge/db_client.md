@@ -63,3 +63,7 @@ type DBClientConfig struct {
 
 时间相关建议：`parseTime=true` 必开，否则 `time.Time` 字段读不回来；
 `loc` 决定读回时的时区，跨服务统一成 `UTC` 最省事。
+
+`interpolateParams=true` 会把参数改成客户端转义后直接下发（不再 `Prepare`/`Execute`）。
+两种模式都能防注入，差别在性能与协议行为，取舍见
+[sql_injection.md](./sql_injection.md)。本库默认不设它。

@@ -17,6 +17,7 @@ Save / Delete`，并在主键维度做自动缓存、自动填充 `created_at` /
 | [harness/knowledge/cache.md](./harness/knowledge/cache.md) | 动缓存 key、TTL、失效策略，或接自定义 `CacheInterface`。 |
 | [harness/knowledge/db_client.md](./harness/knowledge/db_client.md) | 动连接、读写分离、事务、超时、日志级别配置。 |
 | [harness/knowledge/testing.md](./harness/knowledge/testing.md) | 跑测试、加测试，或需要用一次性 MySQL/redis 验证真实行为。 |
+| [harness/knowledge/sql_injection.md](./harness/knowledge/sql_injection.md) | 写 where / 排序 / 动态表名，或怀疑某段 SQL 拼接有注入风险。 |
 
 ## 环境
 
@@ -66,6 +67,9 @@ cd examples && go test ./...                    # 集成测试（需要 MySQL + 
 - **事务内读单行要加锁**：`Load` 在事务里用 `clause.Locking{Strength: "UPDATE"}`。
 - **缓存失效只能发生在 COMMIT 之后**：事务内注册到 `DBClient.AddAfterCommit`，回滚时不得失效。
 - **API key 不进 SQL 拼接**：`cacheKey` / where 条件都用绑定参数；`PKFieldsStr` 只用于缓存 key。
+- **值只能走绑定参数**：`Where("col = ?", v)`，禁止 `+` / `fmt.Sprintf` 拼值。标识符（列名、
+  表名、`ORDER BY`）不能用 `?`，只能来自白名单或代码常量。详见
+  [harness/knowledge/sql_injection.md](./harness/knowledge/sql_injection.md)。
 - **时间精度按列声明**，不要引入全局精度开关：不同表的 `datetime(n)` 不同。
 - 不允许打印或缓存密钥类字段（`client_secret`、证书私钥等）；缓存值即整行结构体，定义 DAO 时注意。
 

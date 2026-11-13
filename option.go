@@ -69,3 +69,28 @@ func OptionSetTX(tx DBClientInterface) Option {
 		daoBase.tx = tx
 	})
 }
+
+// UpdateOption DaoBase.Update 专用的 Option.
+//
+// 有意收窄到"只能绑定事务": Update 作用在已经 Load 好的 DAO 上,
+// 只读、缓存、时间字段名都是 Load 阶段就决定了的, 这时候再改只会让人误以为生效.
+// 接口方法不导出, 外部包实现不了, 以后也塞不进别的配置.
+type UpdateOption interface {
+	applyUpdateOption(daoBase *DaoBase)
+}
+
+type updateOptionFunc func(daoBase *DaoBase)
+
+func (optionFunc updateOptionFunc) applyUpdateOption(daoBase *DaoBase) {
+	optionFunc(daoBase)
+}
+
+// UpdateOptionSetTX 让这条 UPDATE 走指定事务.
+//
+// 只能传 Load 时用的那个 tx: Update 的基线(oldDataMap)和 FOR UPDATE 行锁都在 Load 阶段,
+// 换成别的连接写等于拿另一条连接读到的旧值去覆盖, 调用方以为有锁其实没有.
+func UpdateOptionSetTX(tx DBClientInterface) UpdateOption {
+	return updateOptionFunc(func(daoBase *DaoBase) {
+		daoBase.tx = tx
+	})
+}

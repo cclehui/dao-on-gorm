@@ -73,6 +73,11 @@ DAO 文件的具体顺序见 `knowledge/data_model.md`（`struct` → `init()` �
   保证两条构造路径的默认行为一致。
 - 只读与事务也是 Option（`OptionSetReadOnly` / `OptionSetTX`）。构造入口只有 `NewDaoBase`
   （外加不 Load 的 `NewDaoBaseNoLoad`），不要再加并列的构造函数。
+- Option 按"作用在哪个阶段"分类型，别用一个万能 `Option` 覆盖所有方法：
+  `NewDaoBase` 收 `Option`，`Update` 收 `UpdateOption`（接口方法不导出，只留
+  `UpdateOptionSetTX`）。已经 Load 好的 DAO 上再改只读/缓存只会制造"以为生效了"的错觉。
+- 状态校验（只读、是否 Load、行是否存在、tx 是否一致）写在拥有这些状态的类型上
+  （`DaoBase.checkUpdatable`），不要复制到每个 service；返回值要按"先权限、后状态"的顺序判断。
 - `NewDaoBase` **默认只读**，写操作必须显式 `OptionSetReadOnly(false)`；`NewXxxDao` 这类封装
   也只有一个入口，不要额外加 `NewXxxDaoWithTX` 之类的并列函数。
 - 全局可变量（`DaoCacheExpire`、`DaoCachePrefix`、`DaoCachePackagePrefix`、`FieldNameCreatedAt` 等）

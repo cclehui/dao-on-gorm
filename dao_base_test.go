@@ -72,7 +72,7 @@ func TestChangedColumnValuesIgnoresEqualTime(t *testing.T) {
 	}
 }
 
-// Save 会把 updated_at touch 到当前时间, 但不会动调用方显式赋的值.
+// UpSert 会把 updated_at touch 到当前时间, 但不会动调用方显式赋的值.
 func TestUpdateAutoFillTouchSemantics(t *testing.T) {
 	old := time.Now().Add(-time.Hour)
 	model := &diffModel{ID: 1, Title: "a", CreatedAt: old, UpdatedAt: old}
@@ -212,4 +212,50 @@ func TestDeleteCacheIsNoopWhenCacheDisabled(t *testing.T) {
 
 	// NopCacheUtil 下调用不应 panic; 这里主要验证 option 生效路径.
 	daoBase.DeleteCache(context.Background())
+}
+
+// Update 的前置校验收敛在 DaoBase 里, 业务层不用重复判断.
+func TestUpdateCheckUpdatable(t *testing.T) {
+	ctx := context.Background()
+
+	// 只读 DAO 先报权限问题, 不被后面的主键/行状态掩盖
+	readOnly := newTestDao(t, &diffModel{ID: 7})
+	if err := readOnly.Update(ctx); err == nil || err.Error() != "readOnly" {
+		t.Fatalf("read-only Update error = %v, want readOnly", err)
+	}
+
+	// 没 Load 过: isLoaded=false, 不能降级成 INSERT
+	notLoaded := newTestDao(t, &diffModel{ID: 7})
+	notLoaded.isReadOnly = false
+	if err := notLoaded.Update(ctx); err == nil || err.Error() != "load the row before Update" {
+		t.Fatalf("not-loaded Update error = %v, want load the row before Update", err)
+	}
+
+	// 主键为空
+	emptyPK := newTestDao(t, &diffModel{})
+	emptyPK.isReadOnly = false
+	emptyPK.isLoaded = true
+	if err := emptyPK.Update(ctx); err == nil || err.Error() != "primary key ID is empty" {
+		t.Fatalf("empty-PK Update error = %v, want primary key ID is empty", err)
+	}
+
+	// Load 过但库里没有这行: 不能让 Update 静默变成插入
+	missing := newTestDao(t, &diffModel{ID: 7})
+	missing.isReadOnly = false
+	missing.isLoaded = true
+	missing.isNewRow = true
+	if err := missing.Update(ctx); err == nil || err.Error() != "row not found" {
+		t.Fatalf("missing-row Update error = %v, want row not found", err)
+	}
+
+	// 校验失败要把 tx 还原, 不能把 DAO 留在别人的事务上
+	restored := newTestDao(t, &diffModel{ID: 7})
+	foreign := &DBClient{}
+	if err := restored.Update(ctx, UpdateOptionSetTX(foreign)); err == nil {
+		t.Fatal("read-only Update with tx should fail")
+	}
+
+	if restored.tx != nil {
+		t.Fatalf("tx should be restored after rejected Update, got %v", restored.tx)
+	}
 }

@@ -71,7 +71,7 @@ Extra string `gorm:"column:extra;type:json;column_default:{}" structs:"extra" js
   （或让调用方显式赋合法 JSON）。
 - **MySQL 会重写 JSON 文本**：键顺序按长度/字典重排、去掉多余空格。例如写入
   `{"b":2,"a":1}`，读回来是 `{"a": 1, "b": 2}`。`Update` 的“列是否变化”判定是按字符串
-  比较的，所以写完立刻再 `Save` 一次会把 `extra` 多更新一遍——结果幂等，但会多一条写。
+  比较的，所以写完立刻再 `UpSert` 一次会把 `extra` 多更新一遍——结果幂等，但会多一条写。
   要避免这次多余写入，就在 `Load` 之后以库里的值为基准比较。
 
 ## 时间列精度

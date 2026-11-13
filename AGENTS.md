@@ -1,7 +1,7 @@
 # dao-on-gorm
 
 一个基于 gorm 的**单行 DAO** 封装：一个 struct 绑定一行数据，封装 `Load / Create / Update /
-Save / Delete`，并在主键维度做自动缓存、自动填充 `created_at` / `updated_at`。
+UpSert / Delete`，并在主键维度做自动缓存、自动填充 `created_at` / `updated_at`。
 
 包名 `daoongorm`，模块路径 `github.com/cclehui/dao-on-gorm`。这是一个被多个业务服务引用的库，
 不是可部署的服务：**向后兼容优先**，任何会让既有 DAO 行为静默变化的改动都要当成 breaking change 处理。
@@ -13,7 +13,7 @@ Save / Delete`，并在主键维度做自动缓存、自动填充 `created_at` /
 | [harness/coding_style.md](./harness/coding_style.md) | 写/评审代码前：文件职责、命名、注释、错误、日志。 |
 | [harness/knowledge/architecture.md](./harness/knowledge/architecture.md) | 想搞清楚 `DaoBase` / `Model` / `DBClient` / `CacheInterface` 各层边界和一次调用的完整链路。 |
 | [harness/knowledge/data_model.md](./harness/knowledge/data_model.md) | 定义或修改 DAO 结构体、gorm tag、主键、时间列精度；排查“模型未注册 / 字段没生效”。 |
-| [harness/knowledge/crud.md](./harness/knowledge/crud.md) | 需要确认 Load/Create/Update/Save/Delete 的精确语义（部分更新、时间填充、事务加锁、缓存时机）。 |
+| [harness/knowledge/crud.md](./harness/knowledge/crud.md) | 需要确认 Load/Create/Update/UpSert/Delete 的精确语义（部分更新、时间填充、事务加锁、缓存时机）。 |
 | [harness/knowledge/cache.md](./harness/knowledge/cache.md) | 动缓存 key、TTL、失效策略，或接自定义 `CacheInterface`。 |
 | [harness/knowledge/db_client.md](./harness/knowledge/db_client.md) | 动连接、读写分离、事务、超时、日志级别配置。 |
 | [harness/knowledge/testing.md](./harness/knowledge/testing.md) | 跑测试、加测试，或需要用一次性 MySQL/redis 验证真实行为。 |
@@ -54,8 +54,9 @@ cd examples && go test ./...                    # 集成测试（需要 MySQL + 
 这些是已经对外承诺、被 examples 和下游服务依赖的语义。改之前先和用户确认，并同步更新
 `harness/knowledge/crud.md` / `cache.md`：
 
-- `Save` 在主键为空时走 `Create`，否则走 `Update`；`IsNewRow()` 的取值时机不能变。
-- 未显式修改 `updated_at` 时，`Save` 会把它 touch 到当前时间（原库约定，examples 依赖）。
+- `UpSert` 在主键为空时走 `Create`，否则走 `Update`；`IsNewRow()` 的取值时机不能变。
+- 未显式修改 `updated_at` 时，`UpSert` 会把它 touch 到当前时间（原库约定，examples 依赖）。
+- `Update` / `UpSert` 的 `UpdateOption` 只有 `UpdateOptionSetTX`；接口方法不导出，外部包无法扩展。
 - 只读 DAO（`readOnly=true` / `NewDaoBaseNoLoad`）上的写操作必须报错，不能静默降级。
 - 缓存 key 的默认格式 `daocache:<db>:<table>:<pk>` 不能变，否则升级会让线上缓存整体失效。
 - 事务内不能把未提交的数据写进缓存。

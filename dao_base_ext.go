@@ -47,7 +47,7 @@ func (daoBase *DaoBase) GetColumnMapView() map[string]interface{} {
 
 // NewDaoBaseNoLoad 不加载数据的获取 model 的 daobase.
 //
-// 给"已经用原生 SQL 查出数据"的场景用: 拿到 daoBase 后仍可调用 Save/Delete/CacheKey.
+// 给"已经用原生 SQL 查出数据"的场景用: 拿到 daoBase 后仍可调用 UpSert/Delete/CacheKey.
 func NewDaoBaseNoLoad(model Model, options ...Option) (*DaoBase, error) {
 	fullName, v := GetModelFullNameAndValue(model)
 

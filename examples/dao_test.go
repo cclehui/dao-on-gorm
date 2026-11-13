@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -29,7 +30,7 @@ func TestCclehuiTestADao_NoCache(t *testing.T) {
 	testDao.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
 	testDao.Name = "A 测试"
 	testDao.Extra = `{"tag":"字符串数据:11111aa","score":1}`
-	err = testDao.GetDaoBase().Save(ctx)
+	err = testDao.GetDaoBase().UpSert(ctx)
 	assert.Equal(t, err, nil)
 
 	// 创建成功， 确认数据正确性
@@ -64,7 +65,7 @@ func TestCclehuiTestADao_NoCache(t *testing.T) {
 	assert.Equal(t, testDao2.Version, int64(10))
 
 	testDao2.Version = 21
-	err = testDao2.GetDaoBase().Save(ctx)
+	err = testDao2.GetDaoBase().UpSert(ctx)
 	assert.Equal(t, err, nil)
 
 	assert.True(t, testDao2.UpdatedAt.Sub(lastUpdatedAt) >= time.Second) // udpate_at自动更新
@@ -101,7 +102,7 @@ func TestCclehuiTestADao_WithCache(t *testing.T) {
 	testDao.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
 	testDao.Name = "A 缓存测试"
 	testDao.Extra = `{"tag":"字符串数据:222222222","score":2}`
-	err = testDao.GetDaoBase().Save(ctx)
+	err = testDao.GetDaoBase().UpSert(ctx)
 	assert.Equal(t, err, nil)
 
 	// 创建成功， 确认数据正确性
@@ -141,7 +142,7 @@ func TestCclehuiTestADao_WithCache(t *testing.T) {
 	assert.Equal(t, testDao2.GetDaoBase().IsLoadFromDB(), true) // 从db中加载
 
 	testDao2.Version = 21
-	err = testDao2.GetDaoBase().Save(ctx)
+	err = testDao2.GetDaoBase().UpSert(ctx)
 	assert.Equal(t, err, nil)
 
 	assert.True(t, testDao2.UpdatedAt.Sub(lastUpdatedAt) >= time.Second) // udpate_at自动更新
@@ -176,7 +177,7 @@ func TestCclehuiTestBDao_WithCache(t *testing.T) {
 	testDao.Version = 10
 	testDao.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
 	testDao.Extra = "字符串数据:bbbbbbbbbbbbbbb"
-	err = testDao.GetDaoBase().Save(ctx)
+	err = testDao.GetDaoBase().UpSert(ctx)
 	assert.Equal(t, err, nil)
 
 	lastUpdatedAt := time.Now()
@@ -195,7 +196,7 @@ func TestCclehuiTestBDao_WithCache(t *testing.T) {
 	assert.Equal(t, testDao2.GetDaoBase().IsNewRow(), false)
 	assert.Equal(t, testDao2.Version, int64(10))
 
-	err = testDao2.GetDaoBase().Save(ctx)
+	err = testDao2.GetDaoBase().UpSert(ctx)
 	assert.Equal(t, err, nil)
 
 	assert.True(t, testDao2.UpdatedAtNew.Sub(lastUpdatedAt) >= time.Second) // udpate_at自动更新
@@ -225,7 +226,7 @@ func TestCclehuiTestCDao_WithCache(t *testing.T) {
 	testDao.Version = 10
 	testDao.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
 	testDao.Extra = "字符串数据:cccccccccc"
-	err = testDao.GetDaoBase().Save(ctx)
+	err = testDao.GetDaoBase().UpSert(ctx)
 	assert.Equal(t, err, nil)
 
 	// 创建成功， 确认数据正确性
@@ -256,7 +257,7 @@ func TestCclehuiTestCDao_WithCache(t *testing.T) {
 	assert.Equal(t, testDao2.GetDaoBase().IsLoadFromDB(), true) // 从db中加载
 
 	testDao2.Version = 21
-	err = testDao2.GetDaoBase().Save(ctx)
+	err = testDao2.GetDaoBase().UpSert(ctx)
 	assert.Equal(t, err, nil)
 
 	assert.True(t, testDao2.UpdatedAt.Sub(lastUpdatedAt) >= time.Second) // udpate_at自动更新
@@ -287,7 +288,7 @@ func TestCclehuiTestDDao_WithCache(t *testing.T) {
 	testDao.Version = 10
 	testDao.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
 	testDao.Extra = "字符串数据:cccccccccc"
-	err = testDao.GetDaoBase().Save(ctx)
+	err = testDao.GetDaoBase().UpSert(ctx)
 	assert.Equal(t, err, nil)
 
 	// 创建成功， 确认数据正确性
@@ -320,7 +321,7 @@ func TestCclehuiTestDDao_WithCache(t *testing.T) {
 	assert.Equal(t, testDao2.GetDaoBase().IsLoadFromDB(), true) // 从db中加载
 
 	testDao2.Version = 21
-	err = testDao2.GetDaoBase().Save(ctx)
+	err = testDao2.GetDaoBase().UpSert(ctx)
 	assert.Equal(t, err, nil)
 
 	assert.True(t, testDao2.UpdatedAt.Sub(lastUpdatedAt) >= time.Second) // udpate_at自动更新
@@ -355,7 +356,7 @@ func TestCclehuiTestDao_WithTX(t *testing.T) {
 		testDaoA.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
 		testDaoA.Name = "事务 A"
 		testDaoA.Extra = `{"tag":"事务数据:aaaaaaaa"}`
-		err = testDaoA.GetDaoBase().Save(ctx)
+		err = testDaoA.GetDaoBase().UpSert(ctx)
 		if err != nil {
 			return err
 		}
@@ -364,7 +365,7 @@ func TestCclehuiTestDao_WithTX(t *testing.T) {
 			daoongorm.OptionSetReadOnly(false), daoongorm.OptionSetTX(tx))
 		testDaoB.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
 		testDaoB.Extra = "事务数据:bbbbbbbbb"
-		err = testDaoB.GetDaoBase().Save(ctx)
+		err = testDaoB.GetDaoBase().UpSert(ctx)
 		if err != nil {
 			return err
 		}
@@ -374,7 +375,7 @@ func TestCclehuiTestDao_WithTX(t *testing.T) {
 			daoongorm.OptionSetReadOnly(false), daoongorm.OptionSetTX(tx))
 		testDaoD.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
 		testDaoD.Extra = "事务数据:ddddddddd"
-		err = testDaoD.GetDaoBase().Save(ctx)
+		err = testDaoD.GetDaoBase().UpSert(ctx)
 		if err != nil {
 			return err
 		}
@@ -420,7 +421,7 @@ func TestCclehuiTestASelector_GetDataList(t *testing.T) {
 		testDao.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
 		testDao.Name = name
 		testDao.Extra = `{"tag":"list"}`
-		assert.Equal(t, testDao.GetDaoBase().Save(ctx), nil)
+		assert.Equal(t, testDao.GetDaoBase().UpSert(ctx), nil)
 		ids = append(ids, testDao.ID)
 	}
 
@@ -524,7 +525,7 @@ func TestCclehuiTestAService_CreateUpdateDelete(t *testing.T) {
 	assert.Equal(t, extra.Tag, "svc2")
 	assert.Equal(t, extra.Score, 42)
 
-	// 更新不存在的数据必须报错, 不能被 Save 静默降级成 INSERT
+	// 更新不存在的数据必须报错, 不能被 UpSert 静默降级成 INSERT
 	missing, err := loadWritableDao(ctx, created.ID+100000)
 	assert.Equal(t, err, nil)
 	assert.Equal(t, missing.GetDaoBase().IsNewRow(), true)
@@ -599,13 +600,13 @@ func TestCclehuiTestAService_UpdateWithDao(t *testing.T) {
 	assert.Equal(t, err, nil)
 	assert.Equal(t, fromDB.Version, int64(0))
 
-	// 没改动时 Save 只 touch updated_at, 不应报错
+	// 没改动时 UpSert 只 touch updated_at, 不应报错
 	noop, err := loadWritableDao(ctx, created.ID)
 	assert.Equal(t, err, nil)
 	_, err = service.Update(ctx, noop)
 	assert.Equal(t, err, nil)
 
-	// 没 Load 过的 DAO 必须报错, 不能被 Save 降级成 INSERT
+	// 没 Load 过的 DAO 必须报错, 不能被 UpSert 降级成 INSERT
 	_, err = service.Update(ctx, &model.CclehuiTestADao{ID: created.ID})
 	assert.NotEqual(t, err, nil)
 
@@ -647,7 +648,7 @@ func TestCclehuiTestASelector_OrderAndCount(t *testing.T) {
 		testDao.Name = fmt.Sprintf("order_%d", i)
 		testDao.Version = int64(100 - i) // 与 id 顺序相反, 便于验证排序生效
 		testDao.Extra = `{"tag":"order"}`
-		assert.Equal(t, testDao.GetDaoBase().Save(ctx), nil)
+		assert.Equal(t, testDao.GetDaoBase().UpSert(ctx), nil)
 		ids = append(ids, testDao.ID)
 	}
 	defer func() {
@@ -711,4 +712,174 @@ func TestCclehuiTestASelector_OrderAndCount(t *testing.T) {
 	count, err = selector.GetDataListCount(ctx, nil)
 	assert.Equal(t, err, nil)
 	assert.True(t, count >= 3)
+}
+
+// service 的三个写方法都要能接上层事务: OptionSetTX(tx) 透传后, 要么一起提交, 要么一起回滚.
+func TestCclehuiTestAService_WithTX(t *testing.T) {
+	ctx := context.Background()
+	service := &CclehuiTestAService{}
+	dbClient := global.GetDBClient()
+
+	// Create 在事务里回滚: 事务内用同一个 tx 读得到, 提交前外面读不到
+	var rolledBackID int
+	err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
+		created, err := service.Create(ctx, &CreateCclehuiTestAParams{
+			Version: 1,
+			Weight:  1.5,
+			Age:     time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+			Name:    "service_tx_rollback",
+			Extra:   &model.CclehuiTestAExtra{Tag: "tx"},
+		}, daoongorm.OptionSetTX(tx))
+		assert.Equal(t, err, nil)
+		rolledBackID = created.ID
+
+		inTx, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: rolledBackID},
+			daoongorm.OptionSetReadOnly(false), daoongorm.OptionSetTX(tx))
+		assert.Equal(t, err, nil)
+		assert.Equal(t, inTx.GetDaoBase().IsNewRow(), false)
+
+		return errors.New("rollback on purpose")
+	})
+	assert.NotEqual(t, err, nil)
+	assert.Equal(t, probeDataCount(t, rolledBackID), int64(0))
+
+	// Create 正常提交
+	var committedID int
+	err = dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
+		created, err := service.Create(ctx, &CreateCclehuiTestAParams{
+			Version: 2,
+			Weight:  2.5,
+			Age:     time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC),
+			Name:    "service_tx_commit",
+			Extra:   &model.CclehuiTestAExtra{Tag: "tx"},
+		}, daoongorm.OptionSetTX(tx))
+
+		committedID = created.ID
+
+		return err
+	})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, probeDataCount(t, committedID), int64(1))
+	defer service.Delete(ctx, committedID)
+
+	// Update: Load 和 UpSert 用同一个 tx, 回滚后值保持不变
+	toUpdate, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: committedID},
+		daoongorm.OptionSetReadOnly(false))
+	assert.Equal(t, err, nil)
+	toUpdate.Name = "service_tx_before"
+	_, err = service.Update(ctx, toUpdate)
+	assert.Equal(t, err, nil)
+
+	err = dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
+		row, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: committedID},
+			daoongorm.OptionSetReadOnly(false), daoongorm.OptionSetTX(tx))
+		if err != nil {
+			return err
+		}
+
+		row.Name = "service_tx_rolled_back"
+
+		if _, err := service.Update(ctx, row, daoongorm.UpdateOptionSetTX(tx)); err != nil {
+			return err
+		}
+
+		return errors.New("rollback on purpose")
+	})
+	assert.NotEqual(t, err, nil)
+
+	fromDB, err := loadReadOnlyDao(ctx, committedID)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, fromDB.Name, "service_tx_before")
+
+	// UpSert 带 tx 走 Update 分支: 回滚后值不变
+	err = dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
+		row, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: committedID},
+			daoongorm.OptionSetReadOnly(false), daoongorm.OptionSetTX(tx))
+		if err != nil {
+			return err
+		}
+
+		row.Name = "service_upsert_rolled_back"
+
+		if err := row.GetDaoBase().UpSert(ctx, daoongorm.UpdateOptionSetTX(tx)); err != nil {
+			return err
+		}
+
+		return errors.New("rollback on purpose")
+	})
+	assert.NotEqual(t, err, nil)
+
+	fromDB, err = loadReadOnlyDao(ctx, committedID)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, fromDB.Name, "service_tx_before")
+
+	// UpSert 事务外提交: 值真的落库
+	row, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: committedID},
+		daoongorm.OptionSetReadOnly(false))
+	assert.Equal(t, err, nil)
+	row.Name = "service_upsert_committed"
+	assert.Equal(t, row.GetDaoBase().UpSert(ctx), nil)
+
+	fromDB, err = loadReadOnlyDao(ctx, committedID)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, fromDB.Name, "service_upsert_committed")
+
+	// UpSert 主键为空走 Create: options 在 Create 分支不生效, 也不会因此报错
+	newRow, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{},
+		daoongorm.OptionSetReadOnly(false))
+	assert.Equal(t, err, nil)
+	newRow.Name = "service_upsert_create"
+	newRow.Age = time.Date(2002, 2, 2, 0, 0, 0, 0, time.UTC)
+	newRow.Extra = `{"tag":"upsert"}`
+	assert.Equal(t, newRow.GetDaoBase().UpSert(ctx), nil)
+	assert.True(t, newRow.ID > 0)
+	defer service.Delete(ctx, newRow.ID)
+
+	// Load 在事务外、只给 Update 传 tx: 基线不是同一个连接, 必须报错而不是悄悄写进去
+	err = dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
+		row, err := loadWritableDao(ctx, committedID)
+		if err != nil {
+			return err
+		}
+
+		row.Name = "service_tx_wrong_load"
+
+		_, err = service.Update(ctx, row, daoongorm.UpdateOptionSetTX(tx))
+
+		return err
+	})
+	assert.NotEqual(t, err, nil)
+
+	// 被拒的 Update 不能写库: 值还是上面 UpSert 提交的那个
+	fromDB, err = loadReadOnlyDao(ctx, committedID)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, fromDB.Name, "service_upsert_committed")
+
+	// Delete 在事务里回滚: 行还在
+	err = dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
+		if err := service.Delete(ctx, committedID, daoongorm.OptionSetTX(tx)); err != nil {
+			return err
+		}
+
+		return errors.New("rollback on purpose")
+	})
+	assert.NotEqual(t, err, nil)
+	assert.Equal(t, probeDataCount(t, committedID), int64(1))
+
+	// Delete 提交后行才真正消失
+	err = dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
+		return service.Delete(ctx, committedID, daoongorm.OptionSetTX(tx))
+	})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, probeDataCount(t, committedID), int64(0))
+}
+
+// probeDataCount 按主键数行, 用只读 selector 只是为了避开事务外可见性的干扰.
+func probeDataCount(t *testing.T, id int) int64 {
+	t.Helper()
+
+	count, err := (&CclehuiTestASelector{}).GetDataCountByID(context.Background(), id)
+	assert.Equal(t, err, nil)
+
+	return count
 }

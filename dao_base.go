@@ -16,7 +16,7 @@ import (
 // DaoBase 单行数据的读写入口.
 //
 // 一个 DaoBase 绑定一个 model 指针, 生命周期内只操作这一行:
-// 主键为空时 Save 走 Create, 主键非空时先 Load, 再 Save 走 Update.
+// 主键为空时 UpSert 走 Create, 主键非空时先 Load, 再 UpSert 走 Update.
 // 缓存和 created_at/updated_at 的自动填充都在这一层完成, 调用方不用自己拼 SQL.
 type DaoBase struct {
 	modelImpl         Model // 模型的实现
@@ -24,6 +24,7 @@ type DaoBase struct {
 	modelDef          *ModelDef
 
 	tx           DBClientInterface `gorm:"-" json:"-"`
+	loadTx       DBClientInterface `gorm:"-" json:"-"` // Load 时绑定的 tx, 供 Update 校验一致
 	isReadOnly   bool              `gorm:"-" json:"-"`
 	isLoaded     bool              `gorm:"-" json:"-"`
 	isLoadFromDB bool              `gorm:"-" json:"-"` // 是否是从库中加载
@@ -40,7 +41,7 @@ type DaoBase struct {
 	fieldNameUpdatedAt string
 }
 
-// savedHash 用于判定"这次 Save 有没有真的改动字段".
+// savedHash 用于判定"这次 UpSert 有没有真的改动字段".
 //
 // 只记字段值的 hash, 不依赖 map 的 == 比较: 早先的实现直接比较 interface{},
 // 遇到 time.Time 之外的非可比较类型会 panic, 且 tag 名和列名不一致时永远判断为"有变化".
@@ -77,7 +78,7 @@ func NewDaoBase(ctx context.Context, model Model, options ...Option) (*DaoBase, 
 		return nil, err
 	}
 
-	// load 后的数据存一份, 供 Save 时判断字段是否真的变化
+	// load 后的数据存一份, 供 UpSert 时判断字段是否真的变化
 	daoBase.oldDataMap = daoBase.columnSnapshot()
 
 	return daoBase, nil
@@ -111,6 +112,9 @@ func (daoBase *DaoBase) Load(ctx context.Context) error {
 	if daoBase.isLoaded {
 		return nil
 	}
+
+	// 记下基线是从哪个连接读的, Update 时比对, 防止拿别的连接的旧值去写.
+	daoBase.loadTx = daoBase.tx
 
 	if daoBase.primaryKeyIsEmpty() { // 主键为空
 		daoBase.setFieldDefaultValue() // 设置默认值
@@ -188,17 +192,24 @@ func (daoBase *DaoBase) Create(ctx context.Context) error {
 	return nil
 }
 
-func (daoBase *DaoBase) Update(ctx context.Context) error {
-	if daoBase.isReadOnly {
-		return errors.New("readOnly")
+// Update 更新这一行的变化列, 可选的 UpdateOption 目前只有 UpdateOptionSetTX.
+//
+// 前置校验都放在这里而不是调用方: "能不能更新"取决于 DAO 自己的状态(是否只读、
+// 是否 Load 过、行是否存在), 只有 DaoBase 知道这些, 放在业务层就变成了每个调用方
+// 各抄一遍、还可能抄漏.
+func (daoBase *DaoBase) Update(ctx context.Context, options ...UpdateOption) error {
+	// 校验失败时要把 tx 还原: 否则一条被拒的 UPDATE 会把 DAO 留在"绑着别人的事务"的状态,
+	// 后面的 Delete/Create 会顺着这个 tx 落到不该去的地方.
+	prevTx := daoBase.tx
+
+	for _, option := range options {
+		option.applyUpdateOption(daoBase)
 	}
 
-	if !daoBase.isLoaded {
-		return errors.New("需要先Load")
-	}
+	if err := daoBase.checkUpdatable(); err != nil {
+		daoBase.tx = prevTx
 
-	if daoBase.primaryKeyIsEmpty() {
-		return errors.New("primary key ID is empty")
+		return err
 	}
 
 	daoBase.updateAutoFillValue() // 自动填充某些字段
@@ -230,13 +241,20 @@ func (daoBase *DaoBase) Update(ctx context.Context) error {
 	return nil
 }
 
-// Save 自动识别创建还是更新
-func (daoBase *DaoBase) Save(ctx context.Context) error {
+// UpSert 自动识别创建还是更新.
+//
+// 主键为空时走 Create; 否则走 Update, 并接受 Update 的 Option(目前只有 UpdateOptionSetTX).
+// 事务内改完字段直接存请用它, 不必先判 IsNewRow 再分别调 Create/Update.
+//
+// 注意 Create 分支用不上 options: 新建的行还没有基线, 没有"换 tx 写入"这回事,
+// 事务由构造时的 OptionSetTX 决定. 因此这里不把 options 传给 Create ——
+// UpdateOption 的接口方法不导出, 也传不进去.
+func (daoBase *DaoBase) UpSert(ctx context.Context, options ...UpdateOption) error {
 	if daoBase.IsNewRow() {
 		return daoBase.Create(ctx)
 	}
 
-	return daoBase.Update(ctx)
+	return daoBase.Update(ctx, options...)
 }
 
 func (daoBase *DaoBase) Delete(ctx context.Context) error {
@@ -272,6 +290,44 @@ func (daoBase *DaoBase) IsLoadFromDB() bool {
 
 func (daoBase *DaoBase) GetOldData() map[string]interface{} {
 	return daoBase.oldDataMap
+}
+
+// checkUpdatable 更新前的状态校验.
+//
+// 顺序有意义: 先报"只读"再判主键, 调用方拿到只读 DAO 时最先看到的是权限问题,
+// 而不是被主键/行状态绕一圈.
+//
+// 没 Load 过的 DAO 必须拦下来: 它的 isNewRow 默认是 true, UpSert 会降级成 INSERT,
+// "更新不存在的数据"会静默变成插入. 已 Load 但库里没这行时 isNewRow 也是 true, 同样不能更新.
+//
+// 不额外判断 isLoadFromDB: 从缓存 Load 只发生在只读模式(上面已经拦掉), 可写模式一律查库;
+// 而 Create 之后 isNewRow 变 false 但 isLoadFromDB 仍是 false, 判它会把"创建后再改再存"误伤.
+//
+// 最后一项查的是"这条 UPDATE 用的 tx 是不是 Load 时那个": 换成别的连接写,
+// 基线(oldDataMap)来自另一条连接、FOR UPDATE 锁也没拿到, 调用方以为在事务里其实不安全.
+func (daoBase *DaoBase) checkUpdatable() error {
+	if daoBase.isReadOnly {
+		return errors.New("readOnly")
+	}
+
+	if !daoBase.isLoaded {
+		return errors.New("load the row before Update")
+	}
+
+	if daoBase.primaryKeyIsEmpty() {
+		return errors.New("primary key ID is empty")
+	}
+
+	if daoBase.isNewRow {
+		return errors.New("row not found")
+	}
+
+	if !sameDBClient(daoBase.tx, daoBase.loadTx) {
+		return errors.New("update tx differs from the tx used to Load this row, " +
+			"load and update must share the same tx")
+	}
+
+	return nil
 }
 
 // getPKFieldsWhereAndValues 获取主键 Where 条件. 顺序固定为 ModelDef.PKFieldNames,
@@ -542,9 +598,9 @@ func (daoBase *DaoBase) createAutoFillValue() {
 
 // updateAutoFillValue 自动填充 updated_at.
 //
-// 语义: 调用方没有显式修改 updated_at 时, Save 就把它推到当前时间 (touch);
-// 调用方显式赋值时不覆盖. 因此无改动的 Save 仍会产生一条只更新 updated_at 的 SQL,
-// 这既是原库的约定, 也保证了"有人 Save 过"这件事在 updated_at 上可见.
+// 语义: 调用方没有显式修改 updated_at 时, UpSert 就把它推到当前时间 (touch);
+// 调用方显式赋值时不覆盖. 因此无改动的 UpSert 仍会产生一条只更新 updated_at 的 SQL,
+// 这既是原库的约定, 也保证了"有人 UpSert 过"这件事在 updated_at 上可见.
 func (daoBase *DaoBase) updateAutoFillValue() {
 	sf := daoBase.modelReflectValue.FieldByName(daoBase.fieldNameUpdatedAt)
 

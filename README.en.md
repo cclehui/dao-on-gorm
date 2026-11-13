@@ -7,7 +7,7 @@ English | [简体中文](./README.md)
 
 `dao-on-gorm` is a **single-row DAO** layer built on top of [gorm](https://gorm.io/):
 
-> One struct maps to one row. `DaoBase` handles `Load / Create / Update / Save / Delete` by primary
+> One struct maps to one row. `DaoBase` handles `Load / Create / Update / UpSert / Delete` by primary
 > key, and takes care of primary-key caching plus automatic `created_at` / `updated_at` filling.
 
 Callers no longer hand-write `WHERE` clauses or scatter cache logic across business code.
@@ -19,7 +19,7 @@ if err != nil {
 }
 
 user.Name = "connor"
-return user.GetDaoBase().Save(ctx) // automatically picks Insert or Update
+return user.GetDaoBase().UpSert(ctx) // automatically picks Insert or Update
 ```
 
 ## Features
@@ -27,7 +27,7 @@ return user.GetDaoBase().Save(ctx) // automatically picks Insert or Update
 - **Single-row semantics**: one DAO = one row, addressed by primary key. No list or conditional queries.
 - **Load on construction**: `NewDaoBase` loads automatically, so `IsNewRow()` is usable right away.
 - **Automatic timestamps**: zero-value `created_at` / `updated_at` are filled in, with per-column precision normalization.
-- **Partial updates**: `Save` only writes columns that actually changed, avoiding lost updates under concurrency.
+- **Partial updates**: `UpSert` only writes columns that actually changed, avoiding lost updates under concurrency.
 - **Primary-key cache**: single-row reads check the cache first, writes invalidate it. Caching is off by default and pluggable through `CacheInterface`.
 - **Transaction safety**: rows are locked with `FOR UPDATE` inside transactions, and cache invalidation is deferred until after `COMMIT`.
 - **Read/write splitting**: `DBClient` handles read-replica round-robin and transaction cloning transparently.
@@ -110,12 +110,12 @@ Read-only mode and transactions are both options: `OptionSetReadOnly(bool)` / `O
 ```go
 ctx := context.Background()
 
-// Create: empty primary key means Save performs an Insert
+// Create: empty primary key means UpSert performs an Insert
 user, err := NewUserDao(ctx, &User{Name: "connor"}, false)
 if err != nil {
     return err
 }
-err = user.GetDaoBase().Save(ctx)
+err = user.GetDaoBase().UpSert(ctx)
 // user.ID is populated and IsNewRow() is now false
 
 // Load: read by primary key (readOnly=true uses cache + read replica)
@@ -123,13 +123,13 @@ user, err = NewUserDao(ctx, &User{ID: 1}, true)
 
 // Update: only changed columns are written; updated_at is touched automatically
 user.Name = "new name"
-err = user.GetDaoBase().Save(ctx)
+err = user.GetDaoBase().UpSert(ctx)
 
 // Delete: physical delete by primary key, then cache invalidation
 err = user.GetDaoBase().Delete(ctx)
 ```
 
-> If `updated_at` was not modified explicitly, `Save` touches it to the current time. A `Save` with no
+> If `updated_at` was not modified explicitly, `UpSert` touches it to the current time. An `UpSert` with no
 > business-field changes therefore still emits an `UPDATE` that only sets `updated_at`. This is an
 > intentional, long-standing contract of the library.
 
@@ -144,7 +144,7 @@ err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClien
     }
 
     user.Name = "connor"
-    return user.GetDaoBase().Save(ctx)
+    return user.GetDaoBase().UpSert(ctx, daoongorm.UpdateOptionSetTX(tx))
 })
 ```
 
@@ -292,8 +292,8 @@ integration tests (it defaults to local port 3306).
 This library is consumed by several services, so **backward compatibility comes first**. The following
 behaviors are part of the public contract and must be evaluated carefully before changing:
 
-- `Save` performs `Create` when the primary key is empty, and `Update` otherwise.
-- Unless `updated_at` was modified explicitly, `Save` touches it to the current time.
+- `UpSert` performs `Create` when the primary key is empty, and `Update` otherwise.
+- Unless `updated_at` was modified explicitly, `UpSert` touches it to the current time.
 - Write operations on a read-only DAO return an error instead of silently degrading.
 - The default cache key format `daocache:<db>:<table>:<pk>` stays stable.
 - Nothing is written to the cache inside a transaction; invalidation only happens after `COMMIT`.

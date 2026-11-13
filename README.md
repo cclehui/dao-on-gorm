@@ -7,7 +7,7 @@
 
 `dao-on-gorm` 是构建在 [gorm](https://gorm.io/) 之上的**单行 DAO** 封装：
 
-> 一个 struct 绑定一行数据，`DaoBase` 负责按主键完成 `Load / Create / Update / Save / Delete`，
+> 一个 struct 绑定一行数据，`DaoBase` 负责按主键完成 `Load / Create / Update / UpSert / Delete`，
 > 并自动处理主键维度的缓存与 `created_at` / `updated_at` 填充。
 
 调用方不再手写 `WHERE` 条件，也不需要在业务代码里散落缓存逻辑。
@@ -19,7 +19,7 @@ if err != nil {
 }
 
 user.Name = "connor"
-return user.GetDaoBase().Save(ctx) // 自动识别 Insert / Update
+return user.GetDaoBase().UpSert(ctx) // 自动识别 Insert / Update
 ```
 
 ## 特性
@@ -27,7 +27,7 @@ return user.GetDaoBase().Save(ctx) // 自动识别 Insert / Update
 - **单行语义**：一个 DAO = 一行，按主键读写，不涉及列表/条件查询。
 - **构造即加载**：`NewDaoBase` 自动 `Load`，构造成功后 `IsNewRow()` 立即可用。
 - **自动时间戳**：`created_at` / `updated_at` 零值时自动填充，并支持按列精度归一化。
-- **部分更新**：`Save` 只更新真正变化的非主键列，避免并发场景互相覆盖。
+- **部分更新**：`UpSert` 只更新真正变化的非主键列，避免并发场景互相覆盖。
 - **主键缓存**：读单行优先命中缓存，写操作自动失效；默认不缓存，可插拔 `CacheInterface`。
 - **事务安全**：事务内 `FOR UPDATE` 锁行，缓存失效延迟到 `COMMIT` 之后。
 - **读写分离**：`DBClient` 内置只读副本轮询与事务 clone，DAO 层无感知。
@@ -108,12 +108,12 @@ func NewUserDao(ctx context.Context, user *User, options ...daoongorm.Option) (*
 ```go
 ctx := context.Background()
 
-// Create：主键为空 → Save 走 Insert
+// Create：主键为空 → UpSert 走 Insert
 user, err := NewUserDao(ctx, &User{Name: "connor"}, false)
 if err != nil {
     return err
 }
-err = user.GetDaoBase().Save(ctx)
+err = user.GetDaoBase().UpSert(ctx)
 // user.ID 已回填，IsNewRow() == false
 
 // Load：按主键读取（readOnly=true 走缓存 + 只读副本）
@@ -121,13 +121,13 @@ user, err = NewUserDao(ctx, &User{ID: 1}, true)
 
 // Update：只提交变化列，updated_at 自动 touch
 user.Name = "new name"
-err = user.GetDaoBase().Save(ctx)
+err = user.GetDaoBase().UpSert(ctx)
 
 // Delete：按主键物理删除，并失效缓存
 err = user.GetDaoBase().Delete(ctx)
 ```
 
-> `Save` 在未显式修改 `updated_at` 时会将其更新为当前时间，因此即使业务字段未变也会产生一条只更新
+> `UpSert` 在未显式修改 `updated_at` 时会将其更新为当前时间，因此即使业务字段未变也会产生一条只更新
 > `updated_at` 的 SQL —— 这是本库既有约定。
 
 ### 5. 事务
@@ -141,7 +141,7 @@ err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClien
     }
 
     user.Name = "connor"
-    return user.GetDaoBase().Save(ctx)
+    return user.GetDaoBase().UpSert(ctx, daoongorm.UpdateOptionSetTX(tx))
 })
 ```
 
@@ -276,8 +276,8 @@ cd examples && go test ./... -v
 
 本库被多个业务服务引用，**向后兼容优先**。以下行为属于对外契约，变更前需评估影响：
 
-- `Save` 在主键为空时走 `Create`，否则走 `Update`。
-- 未显式修改 `updated_at` 时，`Save` 会将其 touch 到当前时间。
+- `UpSert` 在主键为空时走 `Create`，否则走 `Update`。
+- 未显式修改 `updated_at` 时，`UpSert` 会将其 touch 到当前时间。
 - 只读 DAO 上的写操作返回错误，不静默降级。
 - 默认缓存 key 格式 `daocache:<db>:<table>:<pk>` 保持不变。
 - 事务内不写缓存，缓存失效只在 `COMMIT` 之后执行。

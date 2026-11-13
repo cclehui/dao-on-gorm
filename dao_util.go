@@ -118,7 +118,7 @@ func roundToFieldPrecision(value time.Time, precision int) time.Time {
 // valuesEqual 判断两个字段值是否语义相等.
 //
 // time.Time 必须用 Equal: 它带 loc 指针和单调时钟, DeepEqual 会把
-// "同一时刻但 Location 实例不同" 判成变化, 导致每次 Save 都写一遍所有时间列.
+// "同一时刻但 Location 实例不同" 判成变化, 导致每次 UpSert 都写一遍所有时间列.
 func valuesEqual(left, right interface{}) bool {
 	leftTime, leftOk := left.(time.Time)
 	rightTime, rightOk := right.(time.Time)
@@ -128,6 +128,27 @@ func valuesEqual(left, right interface{}) bool {
 	}
 
 	return reflect.DeepEqual(left, right)
+}
+
+// sameDBClient 判断两个连接是不是同一个.
+//
+// 不直接写 left == right: 接口的动态类型若不可比较(带 slice/map 字段的值类型实现),
+// 比较会 panic. 不可比较时按"不同"处理 —— 多报一次错远好过把进程打挂.
+func sameDBClient(left, right DBClientInterface) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+
+	leftValue, rightValue := reflect.ValueOf(left), reflect.ValueOf(right)
+	if leftValue.Type() != rightValue.Type() {
+		return false
+	}
+
+	if !leftValue.Comparable() {
+		return false
+	}
+
+	return leftValue.Interface() == rightValue.Interface()
 }
 
 // lockForUpdate 事务内读取单行时加排他锁.

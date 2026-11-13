@@ -12,7 +12,17 @@ import (
 // CclehuiTestAService 写操作的示例: 负责参数组装与业务校验, 真正落库仍交给 DaoBase.
 //
 // 和 selector 分开是因为两者职责不同: selector 只读, service 只写(且必须走主库).
-// 这里不带事务; 需要多条语句原子时用 GetDBClient().Transaction, 见 dao_test.go。
+//
+// 三个写方法都能接上层事务, 只是 Option 类型按阶段分开了:
+// Create / Delete 是 `daoongorm.Option`(要构造新 DAO), Update 是 `daoongorm.UpdateOption`
+// (DAO 已经 Load 好, 只该换 tx). 上层事务直接透传:
+//
+//	dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
+//		_, err := service.Create(ctx, params, daoongorm.OptionSetTX(tx))
+//		return err
+//	})
+//
+// 这样 service 的写和上层其它语句落在同一个事务里, 一起提交或一起回滚.
 type CclehuiTestAService struct{}
 
 // CreateCclehuiTestAParams 创建参数.
@@ -28,8 +38,10 @@ type CreateCclehuiTestAParams struct {
 }
 
 // Create 新建一行, 返回落库后的数据(含自增 ID 与自动填充的时间).
-func (service *CclehuiTestAService) Create(ctx context.Context, params *CreateCclehuiTestAParams) (
-	*model.CclehuiTestADao, error) {
+//
+// 事务内调用传 daoongorm.OptionSetTX(tx), 插入才会和上层其它语句一起提交/回滚。
+func (service *CclehuiTestAService) Create(ctx context.Context, params *CreateCclehuiTestAParams,
+	options ...daoongorm.Option) (*model.CclehuiTestADao, error) {
 	if params == nil {
 		return nil, errors.New("CreateCclehuiTestAParams must not be nil")
 	}
@@ -39,7 +51,11 @@ func (service *CclehuiTestAService) Create(ctx context.Context, params *CreateCc
 		return nil, err
 	}
 
-	newDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{}, daoongorm.OptionSetReadOnly(false))
+	// 这个 DAO 是 service 自己造的, 可写与否由 service 决定:
+	// 调用方的 Option 在前, 这里补的在后覆盖它, 免得调用方传了只读把写接口变成"永远失败".
+	options = append(options, daoongorm.OptionSetReadOnly(false))
+
+	newDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{}, options...)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -66,19 +82,23 @@ func (service *CclehuiTestAService) Create(ctx context.Context, params *CreateCc
 // 不要用 selector 查出来的 DAO: 它是只读的(而且读的是副本, 基线可能已经过期), 写不进去。
 //
 // 为什么要求先 Load:
-//   - 未 Load 的 DAO, Save 会认为是新行并走 Create, "更新不存在的数据"会静默变成插入;
+//   - 未 Load 的 DAO, isNewRow 默认就是 true, UpSert 会走 Create, "更新不存在的数据"会静默变成插入;
 //   - 用 &Dao{ID: x, Name: "y"} 这种只填几列的结构体去更新, 没填的列等于零值,
 //     Age 这种时间列会被 MySQL 当成 '0000-00-00' 报 1292。
 //
-// 这里的检查只是兜底, 正确的用法是调用方从库里读出来再改。
-func (service *CclehuiTestAService) Update(ctx context.Context, updateDao *model.CclehuiTestADao) (
-	*model.CclehuiTestADao, error) {
+// 这些校验都在 DaoBase.Update 里, service 只负责把 Option 透传过去, 不再重复判断一遍 ——
+// "能不能更新"由 DAO 自己的状态决定, 抄一遍只会多一份迟早会走样的规则。
+//
+// 事务内更新时, Load 和 Update 要带同一个 tx:
+//
+//	row, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: id},
+//		daoongorm.OptionSetReadOnly(false), daoongorm.OptionSetTX(tx))
+//	// 改字段...
+//	_, err = service.Update(ctx, row, daoongorm.UpdateOptionSetTX(tx))
+func (service *CclehuiTestAService) Update(ctx context.Context, updateDao *model.CclehuiTestADao,
+	options ...daoongorm.UpdateOption) (*model.CclehuiTestADao, error) {
 	if updateDao == nil {
 		return nil, errors.New("updateDao must not be nil")
-	}
-
-	if updateDao.ID == 0 {
-		return nil, errors.New("primary key ID is empty")
 	}
 
 	daoBase := updateDao.GetDaoBase()
@@ -86,32 +106,25 @@ func (service *CclehuiTestAService) Update(ctx context.Context, updateDao *model
 		return nil, errors.New("updateDao has no DaoBase, load it with NewCclehuiTestADao first")
 	}
 
-	if daoBase.IsNewRow() {
-		return nil, errors.Errorf("row not found, id:%d", updateDao.ID)
-	}
-
-	if !daoBase.IsLoadFromDB() {
-		return nil, errors.New("updateDao was not loaded from db, Load it before Update")
-	}
-
-	// 只读 DAO(selector 查出来的、或者 NewCclehuiTestADao 不传 OptionSetReadOnly(false))不能写.
-	// selector 走的是读副本, 用它做基线还可能读到旧值, 所以更新必须走可写的 Load.
-	if err := daoBase.Save(ctx); err != nil {
-		return nil, errors.Wrapf(err,
-			"update failed, make sure the DAO was loaded for write (NewCclehuiTestADao(ctx, dao, OptionSetReadOnly(false))), id:%d",
-			updateDao.ID)
+	if err := daoBase.Update(ctx, options...); err != nil {
+		return nil, errors.Wrapf(err, "update failed, id:%d", updateDao.ID)
 	}
 
 	return updateDao, nil
 }
 
 // Delete 按主键删除. 删除不存在的行不报错(与 DaoBase.Delete 的语义保持一致).
-func (service *CclehuiTestAService) Delete(ctx context.Context, dataID int) error {
+//
+// 事务内调用传 daoongorm.OptionSetTX(tx), 删除才会和上层其它语句一起提交/回滚。
+func (service *CclehuiTestAService) Delete(ctx context.Context, dataID int,
+	options ...daoongorm.Option) error {
 	if dataID == 0 {
 		return errors.New("primary key ID is empty")
 	}
 
-	deleteDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: dataID}, daoongorm.OptionSetReadOnly(false))
+	options = append(options, daoongorm.OptionSetReadOnly(false))
+
+	deleteDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: dataID}, options...)
 	if err != nil {
 		return errors.WithStack(err)
 	}

@@ -52,6 +52,10 @@
 - 新开关一律做成 `Option`（`OptionFunc`），在 `NewDaoBase*` 时应用，不要在方法里读全局变量。
 - 默认值集中在 `DaoBase.applyOptionDefaults()`，`NewDaoBase` 和 `NewDaoBaseNoLoad` 都调用它，
   保证两条构造路径的默认行为一致。
+- 只读与事务也是 Option（`OptionSetReadOnly` / `OptionSetTX`）。构造入口只有 `NewDaoBase`
+  （外加不 Load 的 `NewDaoBaseNoLoad`），不要再加并列的构造函数。
+- `NewDaoBase` **默认只读**，写操作必须显式 `OptionSetReadOnly(false)`；`NewXxxDao` 这类封装
+  也只有一个入口，不要额外加 `NewXxxDaoWithTX` 之类的并列函数。
 - 全局可变量（`DaoCacheExpire`、`DaoCachePrefix`、`DaoCachePackagePrefix`、`FieldNameCreatedAt` 等）
   只在进程启动阶段设置；不要在处理请求的过程中改它们。
 

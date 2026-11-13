@@ -30,19 +30,8 @@ func init() {
 	daoongorm.RegisterModel(&CclehuiTestADao{})
 }
 
-func NewCclehuiTestADao(ctx context.Context, myDao *CclehuiTestADao, readOnly bool, options ...daoongorm.Option) (*CclehuiTestADao, error) {
-	daoBase, err := daoongorm.NewDaoBase(ctx, myDao, readOnly, options...)
-
-	myDao.daoBase = daoBase
-
-	return myDao, err
-}
-
-// 支持事务
-func NewCclehuiTestADaoWithTX(ctx context.Context,
-	myDao *CclehuiTestADao, tx *daoongorm.DBClient, options ...daoongorm.Option) (*CclehuiTestADao, error) {
-
-	daoBase, err := daoongorm.NewDaoBaseWithTX(ctx, myDao, tx, options...)
+func NewCclehuiTestADao(ctx context.Context, myDao *CclehuiTestADao, options ...daoongorm.Option) (*CclehuiTestADao, error) {
+	daoBase, err := daoongorm.NewDaoBase(ctx, myDao, options...)
 
 	myDao.daoBase = daoBase
 

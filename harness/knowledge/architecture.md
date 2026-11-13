@@ -26,7 +26,7 @@ type Model interface {
 }
 ```
 
-DAO struct 里放一个私有 `daoBase *DaoBase`，并提供 `NewXxxDao(ctx, dao, readOnly, options...)`
+DAO struct 里放一个私有 `daoBase *DaoBase`，并提供 `NewXxxDao(ctx, dao, options...)`
 把构造出来的 base 塞回去。这个 `NewXxxDao` 是给业务用的入口，examples 里的四个 DAO 就是模板。
 
 ## 注册
@@ -41,11 +41,11 @@ DAO struct 里放一个私有 `daoBase *DaoBase`，并提供 `NewXxxDao(ctx, dao
 ## 一次 NewDaoBase 的完整链路
 
 ```
-NewDaoBase(ctx, &User{ID: 1}, readOnly, opts...)
+NewDaoBase(ctx, &User{ID: 1}, OptionSetReadOnly(true), OptionSetTX(tx))
   └─ GetModelFullNameAndValue      校验 *struct，拿可写 reflect.Value
   └─ modelDefCache 查 ModelDef      未注册 → error
-  └─ applyOptionDefaults           缓存/TTL/时间字段名默认值
-  └─ 应用 options
+  └─ applyOptionDefaults           tx=nil、isReadOnly=true(默认只读), 填缓存/TTL/时间字段名默认值
+  └─ 应用 options                  OptionSetReadOnly / OptionSetTX 在这里生效
   └─ Load(ctx)
        ├─ 主键为空 → setFieldDefaultValue，标记 isNewRow
        ├─ 只读 + 启用缓存 → getFromCache 命中即返回（isLoadFromDB=false）

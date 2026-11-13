@@ -78,29 +78,29 @@ func init() {
 ### 3. 构造入口
 
 ```go
-func NewUserDao(ctx context.Context, user *User, readOnly bool,
-    options ...daoongorm.Option) (*User, error) {
-
-    base, err := daoongorm.NewDaoBase(ctx, user, readOnly, options...)
-    user.daoBase = base
-    return user, err
-}
-
-func NewUserDaoWithTX(ctx context.Context, user *User, tx *daoongorm.DBClient,
-    options ...daoongorm.Option) (*User, error) {
-
-    base, err := daoongorm.NewDaoBaseWithTX(ctx, user, tx, options...)
+// 一个构造函数, 只读/事务都用 Option 表达:
+//   NewUserDao(ctx, user)                                        // 只读(默认)
+//   NewUserDao(ctx, user, daoongorm.OptionSetReadOnly(false))    // 可写
+//   NewUserDao(ctx, user, daoongorm.OptionSetReadOnly(false),
+//       daoongorm.OptionSetTX(tx))                               // 事务内可写
+func NewUserDao(ctx context.Context, user *User, options ...daoongorm.Option) (*User, error) {
+    base, err := daoongorm.NewDaoBase(ctx, user, options...)
     user.daoBase = base
     return user, err
 }
 ```
+
+模型自己的固定 Option（例如自定义时间字段名）在构造函数里 `append` 进去。
+
+只读和事务都是 Option：`OptionSetReadOnly(bool)` / `OptionSetTX(tx)`。构造入口只有
+`NewDaoBase` 一个，**默认只读**——需要写就显式传 `OptionSetReadOnly(false)`。
 
 `NewDaoBase` 构造时会立即 `Load`：
 
 | 入参 | 行为 |
 |---|---|
 | 主键为空 | 不查库，按 `column_default` 填充默认值，`IsNewRow() == true` |
-| 主键非空 + `readOnly=true` | 优先读缓存，未命中读只读副本 |
+| 主键非空 + `readOnly=true`（默认） | 优先读缓存，未命中读只读副本 |
 | 主键非空 + `readOnly=false` | 读主库；事务内使用 `FOR UPDATE` |
 
 ### 4. 增删改查
@@ -134,7 +134,8 @@ err = user.GetDaoBase().Delete(ctx)
 
 ```go
 err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
-    user, err := NewUserDaoWithTX(ctx, &User{ID: 1}, tx)
+    user, err := NewUserDao(ctx, &User{ID: 1},
+        daoongorm.OptionSetReadOnly(false), daoongorm.OptionSetTX(tx))
     if err != nil {
         return err
     }
@@ -144,7 +145,7 @@ err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClien
 })
 ```
 
-- 事务内**必须**使用 `NewDaoBaseWithTX` / `NewXxxDaoWithTX`，否则会走主库非事务连接，不受回滚保护。
+- 事务内**必须**带 `OptionSetTX(tx)`，否则会走主库非事务连接，不受回滚保护。
 - 事务内读取单行会加 `FOR UPDATE` 行锁。
 - 缓存失效注册到 `AddAfterCommit`，`COMMIT` 成功后才执行；回滚时缓存保持原值。
 

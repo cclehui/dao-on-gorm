@@ -79,29 +79,30 @@ missing primary key or duplicate column names panic at registration time.
 ### 3. Provide constructors
 
 ```go
-func NewUserDao(ctx context.Context, user *User, readOnly bool,
-    options ...daoongorm.Option) (*User, error) {
-
-    base, err := daoongorm.NewDaoBase(ctx, user, readOnly, options...)
-    user.daoBase = base
-    return user, err
-}
-
-func NewUserDaoWithTX(ctx context.Context, user *User, tx *daoongorm.DBClient,
-    options ...daoongorm.Option) (*User, error) {
-
-    base, err := daoongorm.NewDaoBaseWithTX(ctx, user, tx, options...)
+// One constructor; read-only and transactions are expressed as options:
+//   NewUserDao(ctx, user)                                        // read-only (default)
+//   NewUserDao(ctx, user, daoongorm.OptionSetReadOnly(false))    // writable
+//   NewUserDao(ctx, user, daoongorm.OptionSetReadOnly(false),
+//       daoongorm.OptionSetTX(tx))                               // writable inside a transaction
+func NewUserDao(ctx context.Context, user *User, options ...daoongorm.Option) (*User, error) {
+    base, err := daoongorm.NewDaoBase(ctx, user, options...)
     user.daoBase = base
     return user, err
 }
 ```
+
+Model-specific options (for example custom timestamp field names) are appended inside the constructor.
+
+Read-only mode and transactions are both options: `OptionSetReadOnly(bool)` / `OptionSetTX(tx)`.
+`NewDaoBase` is the only construction entry point and is **read-only by default** — pass
+`OptionSetReadOnly(false)` when you need to write.
 
 `NewDaoBase` loads immediately during construction:
 
 | Input | Behavior |
 |---|---|
 | Empty primary key | No query; fields default from `column_default`; `IsNewRow() == true` |
-| Primary key set, `readOnly=true` | Cache first, then read replica on miss |
+| Primary key set, `readOnly=true` (default) | Cache first, then read replica on miss |
 | Primary key set, `readOnly=false` | Reads the primary; uses `FOR UPDATE` inside a transaction |
 
 ### 4. CRUD
@@ -136,7 +137,8 @@ err = user.GetDaoBase().Delete(ctx)
 
 ```go
 err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
-    user, err := NewUserDaoWithTX(ctx, &User{ID: 1}, tx)
+    user, err := NewUserDao(ctx, &User{ID: 1},
+        daoongorm.OptionSetReadOnly(false), daoongorm.OptionSetTX(tx))
     if err != nil {
         return err
     }
@@ -146,7 +148,7 @@ err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClien
 })
 ```
 
-- Inside a transaction you **must** use `NewDaoBaseWithTX` / `NewXxxDaoWithTX`. Otherwise the DAO uses
+- Inside a transaction you **must** pass `OptionSetTX(tx)`. Otherwise the DAO uses
   the primary non-transactional connection and the work is not protected by rollback.
 - Single-row reads inside a transaction acquire a `FOR UPDATE` row lock.
 - Cache invalidation is registered via `AddAfterCommit` and runs only after a successful `COMMIT`;

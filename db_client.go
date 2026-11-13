@@ -157,7 +157,7 @@ type TransactionFunction func(ctx context.Context, tx *DBClient) error
 
 // Transaction 在事务里执行 fn, 出错或 panic 回滚.
 //
-// 事务内的 DAO 构造请用 NewDaoBaseWithTX(ctx, model, tx). 提交成功后统一失效缓存:
+// 事务内的 DAO 构造请传 OptionSetTX(tx). 提交成功后统一失效缓存:
 // 事务里提前删缓存会让并发读把未提交的旧值重新灌回去.
 func (db *DBClient) Transaction(ctx context.Context, tansFunc TransactionFunction) (err error) {
 	transactionCtx, cancel := context.WithTimeout(ctx, time.Duration(db.conf.TranTimeout))

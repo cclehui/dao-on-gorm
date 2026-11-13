@@ -25,25 +25,13 @@ func init() {
 	daoongorm.RegisterModel(&CclehuiTestBDao{})
 }
 
-func NewCclehuiTestBDao(ctx context.Context, myDao *CclehuiTestBDao, readOnly bool, options ...daoongorm.Option) (*CclehuiTestBDao, error) {
-	options = append(options,
-		daoongorm.OptionSetFieldNameCreatedAt("CreatedAtNew"),
-		daoongorm.OptionSetFieldNameUpdatedAt("UpdatedAtNew"))
-	daoBase, err := daoongorm.NewDaoBase(ctx, myDao, readOnly, options...)
-
-	myDao.daoBase = daoBase
-
-	return myDao, err
-}
-
-// 支持事务
-func NewCclehuiTestBDaoWithTX(ctx context.Context,
-	myDao *CclehuiTestBDao, tx *daoongorm.DBClient, options ...daoongorm.Option) (*CclehuiTestBDao, error) {
+func NewCclehuiTestBDao(ctx context.Context, myDao *CclehuiTestBDao, options ...daoongorm.Option) (*CclehuiTestBDao, error) {
+	// 这个模型的 created_at / updated_at 字段名和常规不同, 所有构造都要带上
 	options = append(options,
 		daoongorm.OptionSetFieldNameCreatedAt("CreatedAtNew"),
 		daoongorm.OptionSetFieldNameUpdatedAt("UpdatedAtNew"))
 
-	daoBase, err := daoongorm.NewDaoBaseWithTX(ctx, myDao, tx, options...)
+	daoBase, err := daoongorm.NewDaoBase(ctx, myDao, options...)
 
 	myDao.daoBase = daoBase
 

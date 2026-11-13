@@ -19,9 +19,9 @@ type CclehuiTestADao struct {
 // 注册紧跟在 struct 定义之后
 func init() { daoongorm.RegisterModel(&CclehuiTestADao{}) }
 
-func NewCclehuiTestADao(ctx context.Context, myDao *CclehuiTestADao, readOnly bool,
+func NewCclehuiTestADao(ctx context.Context, myDao *CclehuiTestADao,
 	options ...daoongorm.Option) (*CclehuiTestADao, error) {
-	daoBase, err := daoongorm.NewDaoBase(ctx, myDao, readOnly, options...)
+	daoBase, err := daoongorm.NewDaoBase(ctx, myDao, options...)
 
 	myDao.daoBase = daoBase
 
@@ -30,7 +30,7 @@ func NewCclehuiTestADao(ctx context.Context, myDao *CclehuiTestADao, readOnly bo
 ```
 
 - 单个 DAO 文件内的顺序固定为：`struct` → `init()`（`RegisterModel`）→ `NewXxxDao` →
-  `NewXxxDaoWithTX` → `DBName` / `TableName` / `DBClient` / `GetDaoBase` / `SetDaoBase`。
+  `DBName` / `TableName` / `DBClient` / `GetDaoBase` / `SetDaoBase`。
   每个 DAO 在自己的文件里注册，不要再建集中的 `init.go`。
 - struct 名/字段名不用和表/列一致，但必须通过 `gorm:"column:..."` 显式声明列名。
   没写 `column:` 时按字段名转 snake_case，容易和实际表结构对不上。
@@ -117,5 +117,9 @@ gorm 的 `precision:` **只影响 DDL**，不会修改你传进去的值（实�
 `precision` 的舍入（`roundTimeFields`）是遍历所有声明了精度的字段，**不受字段名影响**：
 即使忘了配 Option，只要写了 `precision:3`，显式赋的值仍会被舍入。
 
-`NewDaoBase` 和 `NewDaoBaseWithTX` 都要带上同样的 Option，examples 里用
-`options = append(options, ...)` 做在两处。
+只读/事务也是 Option（`OptionSetReadOnly` / `OptionSetTX`），构造统一走 `NewDaoBase`，
+且**默认只读**（`applyOptionDefaults` 里设为 true）。
+
+`NewXxxDao` 只保留一个：`NewXxxDao(ctx, dao, options...)`，没有 `NewXxxDaoWithTX`。
+调用方按需传 `OptionSetReadOnly(false)` / `OptionSetTX(tx)`；模型自己的固定 Option
+（例如 DAO B 的自定义时间字段名）在构造函数里 `append` 进去。

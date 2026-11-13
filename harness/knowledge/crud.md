@@ -60,7 +60,8 @@
 
 ```go
 err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
-	row, err := NewUserDaoWithTX(ctx, &User{ID: 1}, tx) // 注意：必须用 WithTX 构造
+	row, err := NewUserDao(ctx, &User{ID: 1}, // 注意：必须带 OptionSetTX
+		daoongorm.OptionSetReadOnly(false), daoongorm.OptionSetTX(tx))
 	if err != nil {
 		return err
 	}
@@ -71,8 +72,7 @@ err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClien
 
 - `Transaction` 用 `context.WithTimeout(ctx, conf.TranTimeout)` 开事务，出错或 panic 回滚。
 - 回调里的 `tx` 是 clone：只有一个写连接，`ReadOnlyTable` 也落在同一个事务上。
-- **事务里误用 `NewDaoBase` 会走主库非事务连接**，不受回滚保护。这是最容易犯的错，
-  所有 `NewXxxDao` 都要同时提供 `NewXxxDaoWithTX`。
+- **事务里漏传 `OptionSetTX(tx)` 会走主库非事务连接**，不受回滚保护。这是最容易犯的错。
 - 缓存失效在 COMMIT 成功之后统一执行（`AddAfterCommit`）；回滚时缓存保持原值。
 
 ## 只读 DAO

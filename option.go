@@ -53,3 +53,19 @@ func OptionSetFieldNameUpdatedAt(fieldName string) Option {
 		daoBase.fieldNameUpdatedAt = fieldName
 	})
 }
+
+// OptionSetReadOnly 只读模式: 写操作直接报错. NewDaoBase 的默认值是 true, 要写需显式关掉.
+func OptionSetReadOnly(readOnly bool) Option {
+	return OptionFunc(func(daoBase *DaoBase) {
+		daoBase.isReadOnly = readOnly
+	})
+}
+
+// OptionSetTX 绑定事务连接. 传入后所有读写都走这个 tx, 不再用 model.DBClient().
+//
+// 事务里的读写必须用同一个连接, 否则读到的可能是别的连接上未提交/已提交的数据.
+func OptionSetTX(tx DBClientInterface) Option {
+	return OptionFunc(func(daoBase *DaoBase) {
+		daoBase.tx = tx
+	})
+}

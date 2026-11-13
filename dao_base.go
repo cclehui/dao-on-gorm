@@ -48,17 +48,11 @@ func (daoBase *DaoBase) columnSnapshot() map[string]interface{} {
 	return daoBase.GetColumnMapView()
 }
 
-func NewDaoBase(ctx context.Context, model Model, readOnly bool, options ...Option) (*DaoBase, error) {
-	return newDaoBaseFull(ctx, model, readOnly, nil, options...)
-}
-
-// 支持事务
-func NewDaoBaseWithTX(ctx context.Context, model Model, tx DBClientInterface, options ...Option) (*DaoBase, error) {
-	return newDaoBaseFull(ctx, model, false, tx, options...)
-}
-
-func newDaoBaseFull(ctx context.Context, model Model, readOnly bool, tx DBClientInterface, options ...Option) (
-	*DaoBase, error) {
+// NewDaoBase 构造并立即 Load 一个 DaoBase.
+//
+// 只读和事务都通过 Option 传入: OptionSetReadOnly(false) / OptionSetTX(tx).
+// 默认 **只读**: 需要写必须显式 OptionSetReadOnly(false).
+func NewDaoBase(ctx context.Context, model Model, options ...Option) (*DaoBase, error) {
 	fullName, v := GetModelFullNameAndValue(model)
 
 	modelDef, ok := modelDefCache[fullName]
@@ -76,8 +70,6 @@ func newDaoBaseFull(ctx context.Context, model Model, readOnly bool, tx DBClient
 	daoBase.modelImpl = model
 	daoBase.modelReflectValue = v
 	daoBase.modelDef = modelDef
-	daoBase.isReadOnly = readOnly
-	daoBase.tx = tx
 	daoBase.isNewRow = true
 
 	err := daoBase.Load(ctx)
@@ -92,6 +84,10 @@ func newDaoBaseFull(ctx context.Context, model Model, readOnly bool, tx DBClient
 }
 
 func (daoBase *DaoBase) applyOptionDefaults() {
+	// 显式重置: Option 只能覆盖, 不能依赖字段的零值恰好等于默认值.
+	// 默认只读: 写操作必须显式 OptionSetReadOnly(false), 避免"忘了声明"就拿到写权限.
+	daoBase.isReadOnly = true
+	daoBase.tx = nil
 	daoBase.useCache = true
 	daoBase.cacheUtil = globalCacheUtil
 	daoBase.cacheExpireTS = DaoCacheExpire

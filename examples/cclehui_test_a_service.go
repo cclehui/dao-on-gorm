@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	daoongorm "github.com/cclehui/dao-on-gorm"
 	"github.com/cclehui/dao-on-gorm/examples/model"
 	"github.com/pkg/errors"
 )
@@ -38,7 +39,7 @@ func (service *CclehuiTestAService) Create(ctx context.Context, params *CreateCc
 		return nil, err
 	}
 
-	newDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{}, false)
+	newDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{}, daoongorm.OptionSetReadOnly(false))
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -58,7 +59,7 @@ func (service *CclehuiTestAService) Create(ctx context.Context, params *CreateCc
 
 // Update 按主键更新传入的 DAO.
 //
-// 调用方必须传入已经 Load 过的可写 DAO(NewCclehuiTestADao(ctx, &Dao{ID: x}, false)),
+// 调用方必须传入已经 Load 过的可写 DAO(NewCclehuiTestADao(ctx, &Dao{ID: x}, OptionSetReadOnly(false))),
 // 因为 DaoBase.Update 的基线是 Load 那一刻的库值: 只改想改的字段即可, 没改的列不会被写,
 // 零值也能表达("把 version 改成 0")。
 //
@@ -93,11 +94,11 @@ func (service *CclehuiTestAService) Update(ctx context.Context, updateDao *model
 		return nil, errors.New("updateDao was not loaded from db, Load it before Update")
 	}
 
-	// 只读 DAO(selector 查出来的、或者 NewCclehuiTestADao 传 readOnly=true)不能写.
+	// 只读 DAO(selector 查出来的、或者 NewCclehuiTestADao 不传 OptionSetReadOnly(false))不能写.
 	// selector 走的是读副本, 用它做基线还可能读到旧值, 所以更新必须走可写的 Load.
 	if err := daoBase.Save(ctx); err != nil {
 		return nil, errors.Wrapf(err,
-			"update failed, make sure the DAO was loaded for write (NewCclehuiTestADao(ctx, dao, false)), id:%d",
+			"update failed, make sure the DAO was loaded for write (NewCclehuiTestADao(ctx, dao, OptionSetReadOnly(false))), id:%d",
 			updateDao.ID)
 	}
 
@@ -110,7 +111,7 @@ func (service *CclehuiTestAService) Delete(ctx context.Context, dataID int) erro
 		return errors.New("primary key ID is empty")
 	}
 
-	deleteDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: dataID}, false)
+	deleteDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: dataID}, daoongorm.OptionSetReadOnly(false))
 	if err != nil {
 		return errors.WithStack(err)
 	}

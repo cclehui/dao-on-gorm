@@ -1,4 +1,4 @@
-package dao
+package global
 
 import (
 	"io/ioutil"

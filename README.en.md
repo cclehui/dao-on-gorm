@@ -260,7 +260,10 @@ as Redis, testify, and yaml therefore stay out of the root `go.mod` and are neve
 of this library.
 
 - [examples/dao_test.go](./examples/dao_test.go): CRUD, caching, transactions
-- [examples/cache_util_demo.go](./examples/cache_util_demo.go): a redigo-based `CacheInterface`
+- [examples/model/](./examples/model): DAO structs (A/B/C/D covering the primary-key and timestamp
+  variations) and model registration
+- [examples/global/](./examples/global): config loading, lazy `DBClient` / cache setup, and a
+  redigo-based `CacheInterface`
 - [examples/config_demo.yaml](./examples/config_demo.yaml): MySQL / Redis connection settings
 - [examples/sql.md](./examples/sql.md): test table schemas
 

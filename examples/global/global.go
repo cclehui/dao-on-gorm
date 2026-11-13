@@ -1,6 +1,8 @@
-package dao
+package global
 
-import daoongorm "github.com/cclehui/dao-on-gorm"
+import (
+	daoongorm "github.com/cclehui/dao-on-gorm"
+)
 
 var configFile = "./config_demo.yaml"
 

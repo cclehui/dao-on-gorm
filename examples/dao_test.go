@@ -7,6 +7,8 @@ import (
 	"time"
 
 	daoongorm "github.com/cclehui/dao-on-gorm"
+	"github.com/cclehui/dao-on-gorm/examples/global"
+	"github.com/cclehui/dao-on-gorm/examples/model"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,10 +17,10 @@ import (
 // 不带缓存 curd
 func TestCclehuiTestADao_NoCache(t *testing.T) {
 	ctx := context.Background()
-	logPrefix := "CclehuiTestADao"
+	logPrefix := "model.CclehuiTestADao"
 
 	// 创建新记录
-	testDao, err := NewCclehuiTestADao(ctx, &CclehuiTestADao{}, false)
+	testDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{}, false)
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao.GetDaoBase().IsNewRow(), true)
@@ -55,7 +57,7 @@ func TestCclehuiTestADao_NoCache(t *testing.T) {
 	time.Sleep(time.Second * 1)
 
 	// 更新数据 --------------------
-	testDao2, err := NewCclehuiTestADao(ctx, &CclehuiTestADao{ID: testDao.ID}, false)
+	testDao2, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: testDao.ID}, false)
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao2.GetDaoBase().IsNewRow(), false)
@@ -82,7 +84,7 @@ func TestCclehuiTestADao_NoCache(t *testing.T) {
 // 带缓存 curd
 func TestCclehuiTestADao_WithCache(t *testing.T) {
 	ctx := context.Background()
-	daoongorm.SetGlobalCacheUtil(GetCacheUtil()) // 设置全局缓存组件
+	daoongorm.SetGlobalCacheUtil(global.GetCacheUtil()) // 设置全局缓存组件
 	defer func() {
 		daoongorm.SetGlobalCacheUtil(&daoongorm.NopCacheUtil{})
 	}()
@@ -90,7 +92,7 @@ func TestCclehuiTestADao_WithCache(t *testing.T) {
 	logPrefix := "TestCclehuiTestADao_WithCache"
 
 	// 创建新记录
-	testDao, err := NewCclehuiTestADao(ctx, &CclehuiTestADao{}, false)
+	testDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{}, false)
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao.GetDaoBase().IsNewRow(), true)
@@ -121,7 +123,7 @@ func TestCclehuiTestADao_WithCache(t *testing.T) {
 	time.Sleep(time.Second * 1)
 
 	// 从缓存中Load 数据 --------------
-	testDao2, err := NewCclehuiTestADao(ctx, &CclehuiTestADao{ID: testDao.ID}, true) // 这里是true
+	testDao2, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: testDao.ID}, true) // 这里是true
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao2.GetDaoBase().IsNewRow(), false)
@@ -131,7 +133,7 @@ func TestCclehuiTestADao_WithCache(t *testing.T) {
 	fmt.Printf("%s, 缓存检测成功\n", logPrefix)
 
 	// 更新数据 --------------------
-	testDao2, err = NewCclehuiTestADao(ctx, &CclehuiTestADao{ID: testDao.ID}, false)
+	testDao2, err = model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: testDao.ID}, false)
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao2.GetDaoBase().IsNewRow(), false)
@@ -158,7 +160,7 @@ func TestCclehuiTestADao_WithCache(t *testing.T) {
 // 非ID主键
 func TestCclehuiTestBDao_WithCache(t *testing.T) {
 	ctx := context.Background()
-	daoongorm.SetGlobalCacheUtil(GetCacheUtil()) // 设置全局缓存组件
+	daoongorm.SetGlobalCacheUtil(global.GetCacheUtil()) // 设置全局缓存组件
 	defer func() {
 		daoongorm.SetGlobalCacheUtil(&daoongorm.NopCacheUtil{})
 	}()
@@ -166,7 +168,7 @@ func TestCclehuiTestBDao_WithCache(t *testing.T) {
 	logPrefix := "非ID为主键key的表"
 
 	// 创建新记录
-	testDao, err := NewCclehuiTestBDao(ctx, &CclehuiTestBDao{}, false)
+	testDao, err := model.NewCclehuiTestBDao(ctx, &model.CclehuiTestBDao{}, false)
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao.GetDaoBase().IsNewRow(), true)
@@ -187,7 +189,7 @@ func TestCclehuiTestBDao_WithCache(t *testing.T) {
 	time.Sleep(time.Second * 1)
 
 	// 更新数据 --------------------
-	testDao2, err := NewCclehuiTestBDao(ctx, &CclehuiTestBDao{ColumnID: testDao.ColumnID}, false)
+	testDao2, err := model.NewCclehuiTestBDao(ctx, &model.CclehuiTestBDao{ColumnID: testDao.ColumnID}, false)
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao2.GetDaoBase().IsNewRow(), false)
@@ -207,7 +209,7 @@ func TestCclehuiTestBDao_WithCache(t *testing.T) {
 // 非自增主键
 func TestCclehuiTestCDao_WithCache(t *testing.T) {
 	ctx := context.Background()
-	daoongorm.SetGlobalCacheUtil(GetCacheUtil()) // 设置全局缓存组件
+	daoongorm.SetGlobalCacheUtil(global.GetCacheUtil()) // 设置全局缓存组件
 	defer func() {
 		daoongorm.SetGlobalCacheUtil(&daoongorm.NopCacheUtil{})
 	}()
@@ -215,7 +217,7 @@ func TestCclehuiTestCDao_WithCache(t *testing.T) {
 	logPrefix := "TestCclehuiTestCDao_WithCache, 非自增主键"
 
 	// 创建新记录
-	testDao, err := NewCclehuiTestCDao(ctx, &CclehuiTestCDao{ColumnID: 100}, false)
+	testDao, err := model.NewCclehuiTestCDao(ctx, &model.CclehuiTestCDao{ColumnID: 100}, false)
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao.GetDaoBase().IsNewRow(), true)
@@ -238,7 +240,7 @@ func TestCclehuiTestCDao_WithCache(t *testing.T) {
 	time.Sleep(time.Second * 1)
 
 	// 从缓存中Load 数据 --------------
-	testDao2, err := NewCclehuiTestCDao(ctx, &CclehuiTestCDao{ColumnID: testDao.ColumnID}, true) // 这里是true
+	testDao2, err := model.NewCclehuiTestCDao(ctx, &model.CclehuiTestCDao{ColumnID: testDao.ColumnID}, true) // 这里是true
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao2.GetDaoBase().IsNewRow(), false)
@@ -246,7 +248,7 @@ func TestCclehuiTestCDao_WithCache(t *testing.T) {
 	assert.Equal(t, testDao2.GetDaoBase().IsLoadFromDB(), false) // 不是从db中加载， 从缓存中加载的
 
 	// 更新数据 --------------------
-	testDao2, err = NewCclehuiTestCDao(ctx, &CclehuiTestCDao{ColumnID: testDao.ColumnID}, false)
+	testDao2, err = model.NewCclehuiTestCDao(ctx, &model.CclehuiTestCDao{ColumnID: testDao.ColumnID}, false)
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao2.GetDaoBase().IsNewRow(), false)
@@ -268,7 +270,7 @@ func TestCclehuiTestCDao_WithCache(t *testing.T) {
 // 联合主键
 func TestCclehuiTestDDao_WithCache(t *testing.T) {
 	ctx := context.Background()
-	daoongorm.SetGlobalCacheUtil(GetCacheUtil()) // 设置全局缓存组件
+	daoongorm.SetGlobalCacheUtil(global.GetCacheUtil()) // 设置全局缓存组件
 	defer func() {
 		daoongorm.SetGlobalCacheUtil(&daoongorm.NopCacheUtil{})
 	}()
@@ -276,8 +278,8 @@ func TestCclehuiTestDDao_WithCache(t *testing.T) {
 	logPrefix := "TestCclehuiTestDDao_WithCache, 联合主键"
 
 	// 创建新记录
-	testDao, err := NewCclehuiTestDDao(ctx,
-		&CclehuiTestDDao{UserID: 100801, ColumnID: 101}, false)
+	testDao, err := model.NewCclehuiTestDDao(ctx,
+		&model.CclehuiTestDDao{UserID: 100801, ColumnID: 101}, false)
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao.GetDaoBase().IsNewRow(), true)
@@ -300,8 +302,8 @@ func TestCclehuiTestDDao_WithCache(t *testing.T) {
 	time.Sleep(time.Second * 1)
 
 	// 从缓存中Load 数据 --------------
-	testDao2, err := NewCclehuiTestDDao(ctx,
-		&CclehuiTestDDao{UserID: testDao.UserID, ColumnID: testDao.ColumnID}, true) // 这里是true
+	testDao2, err := model.NewCclehuiTestDDao(ctx,
+		&model.CclehuiTestDDao{UserID: testDao.UserID, ColumnID: testDao.ColumnID}, true) // 这里是true
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao2.GetDaoBase().IsNewRow(), false)
@@ -309,8 +311,8 @@ func TestCclehuiTestDDao_WithCache(t *testing.T) {
 	assert.Equal(t, testDao2.GetDaoBase().IsLoadFromDB(), false) // 不是从db中加载， 从缓存中加载的
 
 	// 更新数据 --------------------
-	testDao2, err = NewCclehuiTestDDao(ctx,
-		&CclehuiTestDDao{UserID: testDao.UserID, ColumnID: testDao.ColumnID}, false)
+	testDao2, err = model.NewCclehuiTestDDao(ctx,
+		&model.CclehuiTestDDao{UserID: testDao.UserID, ColumnID: testDao.ColumnID}, false)
 	assert.Equal(t, err, nil)
 
 	assert.Equal(t, testDao2.GetDaoBase().IsNewRow(), false)
@@ -332,23 +334,23 @@ func TestCclehuiTestDDao_WithCache(t *testing.T) {
 // 事务功能单元测试
 func TestCclehuiTestDao_WithTX(t *testing.T) {
 	ctx := context.Background()
-	daoongorm.SetGlobalCacheUtil(GetCacheUtil()) // 设置全局缓存组件
+	daoongorm.SetGlobalCacheUtil(global.GetCacheUtil()) // 设置全局缓存组件
 	defer func() {
 		daoongorm.SetGlobalCacheUtil(&daoongorm.NopCacheUtil{})
 	}()
 
 	logPrefix := "TestCclehuiTestDao_WithTX, 事务测试"
 
-	dbClient := GetDBClient()
-	var testDaoA *CclehuiTestADao
-	var testDaoB *CclehuiTestBDao
-	var testDaoD *CclehuiTestDDao
+	dbClient := global.GetDBClient()
+	var testDaoA *model.CclehuiTestADao
+	var testDaoB *model.CclehuiTestBDao
+	var testDaoD *model.CclehuiTestDDao
 
 	fmt.Printf("%s, 事务开始\n", logPrefix)
 
 	var err error
 	err = dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
-		testDaoA, _ = NewCclehuiTestADaoWithTX(ctx, &CclehuiTestADao{}, tx)
+		testDaoA, _ = model.NewCclehuiTestADaoWithTX(ctx, &model.CclehuiTestADao{}, tx)
 		testDaoA.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
 		testDaoA.Name = "事务 A"
 		testDaoA.Extra = `{"tag":"事务数据:aaaaaaaa"}`
@@ -357,7 +359,7 @@ func TestCclehuiTestDao_WithTX(t *testing.T) {
 			return err
 		}
 
-		testDaoB, _ = NewCclehuiTestBDaoWithTX(ctx, &CclehuiTestBDao{}, tx)
+		testDaoB, _ = model.NewCclehuiTestBDaoWithTX(ctx, &model.CclehuiTestBDao{}, tx)
 		testDaoB.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
 		testDaoB.Extra = "事务数据:bbbbbbbbb"
 		err = testDaoB.GetDaoBase().Save(ctx)
@@ -365,8 +367,8 @@ func TestCclehuiTestDao_WithTX(t *testing.T) {
 			return err
 		}
 
-		testDaoD, _ = NewCclehuiTestDDaoWithTX(ctx,
-			&CclehuiTestDDao{UserID: 100801, ColumnID: 100}, tx)
+		testDaoD, _ = model.NewCclehuiTestDDaoWithTX(ctx,
+			&model.CclehuiTestDDao{UserID: 100801, ColumnID: 100}, tx)
 		testDaoD.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
 		testDaoD.Extra = "事务数据:ddddddddd"
 		err = testDaoD.GetDaoBase().Save(ctx)
@@ -383,20 +385,20 @@ func TestCclehuiTestDao_WithTX(t *testing.T) {
 
 	nowTime := time.Now()
 
-	testDaoACheck, err := NewCclehuiTestADao(ctx, &CclehuiTestADao{ID: testDaoA.ID}, false)
+	testDaoACheck, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: testDaoA.ID}, false)
 	assert.Equal(t, err, nil)
 	assert.Equal(t, testDaoACheck.GetDaoBase().IsNewRow(), false)
 	assert.True(t, nowTime.Sub(testDaoACheck.UpdatedAt) < time.Second*10)
 	assert.True(t, testDaoACheck.Extra != "")
 
-	testDaoBCheck, err := NewCclehuiTestBDao(ctx, &CclehuiTestBDao{ColumnID: testDaoB.ColumnID}, false)
+	testDaoBCheck, err := model.NewCclehuiTestBDao(ctx, &model.CclehuiTestBDao{ColumnID: testDaoB.ColumnID}, false)
 	assert.Equal(t, err, nil)
 	assert.Equal(t, testDaoBCheck.GetDaoBase().IsNewRow(), false)
 	assert.True(t, nowTime.Sub(testDaoBCheck.UpdatedAtNew) < time.Second*10)
 	assert.True(t, testDaoBCheck.Extra != "")
 
-	testDaoDCheck, err := NewCclehuiTestDDao(ctx,
-		&CclehuiTestDDao{UserID: testDaoD.UserID, ColumnID: testDaoD.ColumnID}, false)
+	testDaoDCheck, err := model.NewCclehuiTestDDao(ctx,
+		&model.CclehuiTestDDao{UserID: testDaoD.UserID, ColumnID: testDaoD.ColumnID}, false)
 	assert.Equal(t, err, nil)
 	assert.Equal(t, testDaoDCheck.GetDaoBase().IsNewRow(), false)
 	assert.True(t, nowTime.Sub(testDaoDCheck.UpdatedAt) < time.Second*10)

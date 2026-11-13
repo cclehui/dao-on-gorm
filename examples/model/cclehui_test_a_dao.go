@@ -1,4 +1,4 @@
-package dao
+package model
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	daoongorm "github.com/cclehui/dao-on-gorm"
+	"github.com/cclehui/dao-on-gorm/examples/global"
 	"github.com/pkg/errors"
 )
 
@@ -22,6 +23,11 @@ type CclehuiTestADao struct {
 	UpdatedAt time.Time `gorm:"column:updated_at;precision:3" structs:"updated_at" json:"updated_at"`
 
 	daoBase *daoongorm.DaoBase
+}
+
+// 模型注册到 daoongorm, 供 NewDaoBase 按类型查找 ModelDef.
+func init() {
+	daoongorm.RegisterModel(&CclehuiTestADao{})
 }
 
 func NewCclehuiTestADao(ctx context.Context, myDao *CclehuiTestADao, readOnly bool, options ...daoongorm.Option) (*CclehuiTestADao, error) {
@@ -44,7 +50,7 @@ func NewCclehuiTestADaoWithTX(ctx context.Context,
 }
 
 func (myDao *CclehuiTestADao) DBName() string {
-	return GetDBClient().GetDBClientConfig().DSN.DBName
+	return global.GetDBClient().GetDBClientConfig().DSN.DBName
 }
 
 func (myDao *CclehuiTestADao) TableName() string {
@@ -52,7 +58,7 @@ func (myDao *CclehuiTestADao) TableName() string {
 }
 
 func (myDao *CclehuiTestADao) DBClient() daoongorm.DBClientInterface {
-	return GetDBClient()
+	return global.GetDBClient()
 }
 
 func (myDao *CclehuiTestADao) GetDaoBase() *daoongorm.DaoBase {

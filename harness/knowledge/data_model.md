@@ -16,13 +16,29 @@ type CclehuiTestADao struct {
 	daoBase *daoongorm.DaoBase
 }
 
+// 注册紧跟在 struct 定义之后
 func init() { daoongorm.RegisterModel(&CclehuiTestADao{}) }
+
+func NewCclehuiTestADao(ctx context.Context, myDao *CclehuiTestADao, readOnly bool,
+	options ...daoongorm.Option) (*CclehuiTestADao, error) {
+	daoBase, err := daoongorm.NewDaoBase(ctx, myDao, readOnly, options...)
+
+	myDao.daoBase = daoBase
+
+	return myDao, err
+}
 ```
 
+- 单个 DAO 文件内的顺序固定为：`struct` → `init()`（`RegisterModel`）→ `NewXxxDao` →
+  `NewXxxDaoWithTX` → `DBName` / `TableName` / `DBClient` / `GetDaoBase` / `SetDaoBase`。
+  每个 DAO 在自己的文件里注册，不要再建集中的 `init.go`。
 - struct 名/字段名不用和表/列一致，但必须通过 `gorm:"column:..."` 显式声明列名。
   没写 `column:` 时按字段名转 snake_case，容易和实际表结构对不上。
 - 主键必须有 `primaryKey`，联合主键在多个字段上各标一次。
 - 私有 `daoBase` 字段不会被映射（未导出字段直接跳过）。
+- 示例 DAO 放在 `examples/model/` 独立 package 里，`Model.DBClient()` 直接调
+  `global.GetDBClient()`。依赖方向是 `model -> global`，`global` **不要** import `model`，
+  否则成环。
 
 ## 支持的 tag
 

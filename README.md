@@ -250,7 +250,9 @@ cd examples && go test ./... -v
 下游 `go get` 本库时也不会被被动引入。
 
 - [examples/dao_test.go](./examples/dao_test.go)：CRUD、缓存、事务
-- [examples/cache_util_demo.go](./examples/cache_util_demo.go)：基于 redigo 的 `CacheInterface` 实现
+- [examples/model/](./examples/model)：DAO 结构体（A/B/C/D 四种主键/时间列形态）与模型注册
+- [examples/global/](./examples/global)：配置加载、`DBClient` / 缓存组件的懒加载，以及基于 redigo 的
+  `CacheInterface` 实现
 - [examples/config_demo.yaml](./examples/config_demo.yaml)：MySQL / redis 连接配置
 - [examples/sql.md](./examples/sql.md)：测试表结构
 

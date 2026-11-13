@@ -1,4 +1,4 @@
-package dao
+package global
 
 // 缓存的实现demo
 

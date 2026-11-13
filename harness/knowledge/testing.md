@@ -5,7 +5,7 @@
 | 层 | 位置 | 依赖 | 跑法 |
 |---|---|---|---|
 | 纯单元 | 根目录 `*_test.go`（`model_test.go` / `dao_base_test.go` / `db_client_test.go` / `cache_test.go`） | 无 | `go test .` |
-| 集成 | `examples/dao_test.go`（独立 module） | 真实 MySQL + redis | `cd examples && go test ./...` |
+| 集成 | `examples/dao_test.go` + `examples/model/` + `examples/global/`（独立 module） | 真实 MySQL + redis | `cd examples && go test ./...` |
 
 `examples/` 是**独立的 Go module**（`examples/go.mod`，通过 `replace` 指向仓库根目录），
 所以 examples 用到的 redis / testify / yaml 依赖不会进入根 `go.mod`，下游引用本库时不会被动引入。

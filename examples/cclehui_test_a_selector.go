@@ -4,6 +4,8 @@ import (
 	"context"
 
 	daoongorm "github.com/cclehui/dao-on-gorm"
+	"github.com/cclehui/dao-on-gorm/examples/global"
+	"github.com/cclehui/dao-on-gorm/examples/model"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 )
@@ -12,10 +14,10 @@ import (
 type CclehuiTestASelector struct{}
 
 func (selector *CclehuiTestASelector) GetDataByID(ctx context.Context, dataID int) (
-	*CclehuiTestADao, error) {
-	tempDao := &CclehuiTestADao{}
+	*model.CclehuiTestADao, error) {
+	tempDao := &model.CclehuiTestADao{}
 
-	db := GetDBClient()
+	db := global.GetDBClient()
 	newDB := db.ReadOnlyTable(ctx, tempDao.TableName())
 
 	newDB = newDB.Select("*").
@@ -33,9 +35,9 @@ func (selector *CclehuiTestASelector) GetDataByID(ctx context.Context, dataID in
 }
 
 func (selector *CclehuiTestASelector) GetDataCountByID(ctx context.Context, dataID int) (int64, error) {
-	tempDao := &CclehuiTestADao{}
+	tempDao := &model.CclehuiTestADao{}
 
-	db := GetDBClient()
+	db := global.GetDBClient()
 	newDB := db.ReadOnlyTable(ctx, tempDao.TableName())
 
 	var result int64
@@ -52,17 +54,17 @@ func (selector *CclehuiTestASelector) GetDataCountByID(ctx context.Context, data
 // 列表查询：单行 DAO 不承担 list，直接在只读连接上 Scan 到切片。
 // 用 id > lastID 的游标分页而不是 OFFSET：翻页时不会因为前面的行被删掉而漏数据。
 func (selector *CclehuiTestASelector) GetDataList(ctx context.Context, lastID int, limit int) (
-	[]*CclehuiTestADao, error) {
-	tempDao := &CclehuiTestADao{}
+	[]*model.CclehuiTestADao, error) {
+	tempDao := &model.CclehuiTestADao{}
 
-	db := GetDBClient()
+	db := global.GetDBClient()
 	newDB := db.ReadOnlyTable(ctx, tempDao.TableName())
 
 	if limit <= 0 {
 		limit = 100
 	}
 
-	list := make([]*CclehuiTestADao, 0)
+	list := make([]*model.CclehuiTestADao, 0)
 
 	newDB = newDB.Select("*").
 		Where(" id > ? ", lastID).

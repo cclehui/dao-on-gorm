@@ -25,7 +25,8 @@ func TestCclehuiTestADao_NoCache(t *testing.T) {
 
 	testDao.Version = 10
 	testDao.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
-	testDao.Extra = "字符串数据:11111aa"
+	testDao.Name = "A 测试"
+	testDao.Extra = `{"tag":"字符串数据:11111aa","score":1}`
 	err = testDao.GetDaoBase().Save(ctx)
 	assert.Equal(t, err, nil)
 
@@ -39,6 +40,12 @@ func TestCclehuiTestADao_NoCache(t *testing.T) {
 	dataCount, err := selector.GetDataCountByID(ctx, testDao.ID)
 	assert.Equal(t, err, nil)
 	assert.Equal(t, dataCount, int64(1))
+
+	// extra 是 JSON 列, 由 GetExtra 手工解码成结构体
+	extra, err := testDao.GetExtra()
+	assert.Equal(t, err, nil)
+	assert.Equal(t, extra.Tag, "字符串数据:11111aa")
+	assert.Equal(t, extra.Score, 1)
 
 	fmt.Printf("%s, create 测试成功, ID:%d, : %+v\n",
 		logPrefix, testDao.ID, testDao.GetDaoBase().GetDefaultMapView())
@@ -90,7 +97,8 @@ func TestCclehuiTestADao_WithCache(t *testing.T) {
 
 	testDao.Version = 10
 	testDao.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
-	testDao.Extra = "字符串数据:222222222"
+	testDao.Name = "A 缓存测试"
+	testDao.Extra = `{"tag":"字符串数据:222222222","score":2}`
 	err = testDao.GetDaoBase().Save(ctx)
 	assert.Equal(t, err, nil)
 
@@ -342,7 +350,8 @@ func TestCclehuiTestDao_WithTX(t *testing.T) {
 	err = dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClient) error {
 		testDaoA, _ = NewCclehuiTestADaoWithTX(ctx, &CclehuiTestADao{}, tx)
 		testDaoA.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
-		testDaoA.Extra = "事务数据:aaaaaaaa"
+		testDaoA.Name = "事务 A"
+		testDaoA.Extra = `{"tag":"事务数据:aaaaaaaa"}`
 		err = testDaoA.GetDaoBase().Save(ctx)
 		if err != nil {
 			return err

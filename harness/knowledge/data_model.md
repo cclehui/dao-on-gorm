@@ -8,7 +8,8 @@ type CclehuiTestADao struct {
 	Version   int64     `gorm:"column:version" structs:"version" json:"version"`
 	Weight    float64   `gorm:"column:weight;column_default:1.9" structs:"weight" json:"weight"`
 	Age       time.Time `gorm:"column:age" structs:"age" json:"age"`
-	Extra     string    `gorm:"column:extra" structs:"extra" json:"extra"`
+	Name      string    `gorm:"column:name" structs:"name" json:"name"`
+	Extra     string    `gorm:"column:extra;type:json;column_default:{}" structs:"extra" json:"extra"`
 	CreatedAt time.Time `gorm:"column:created_at;precision:3" structs:"created_at" json:"created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at;precision:3" structs:"updated_at" json:"updated_at"`
 
@@ -36,6 +37,25 @@ func init() { daoongorm.RegisterModel(&CclehuiTestADao{}) }
 | `-` 或空 tag | 忽略该列 |
 
 `precision` 同时会被 gorm 读取（用于 DDL），本库也读它（用于写入前的舍入）。
+
+## JSON 列
+
+本库只映射基础类型和 `time.Time`，**没有** `map` / struct / 自定义 JSON 类型的分支，所以 JSON 列
+只能用 `string` 承载 JSON 文本：
+
+```go
+Extra string `gorm:"column:extra;type:json;column_default:{}" structs:"extra" json:"extra"`
+```
+
+两个必须注意的点（都用 MySQL 8 实测过）：
+
+- **空串不是合法 JSON**。新建行时字段是零值 `""`，直接写进 `json` 列会报
+  `Error 3140: Invalid JSON text: "The document is empty."`。必须给 `column_default:{}`
+  （或让调用方显式赋合法 JSON）。
+- **MySQL 会重写 JSON 文本**：键顺序按长度/字典重排、去掉多余空格。例如写入
+  `{"b":2,"a":1}`，读回来是 `{"a": 1, "b": 2}`。`Update` 的“列是否变化”判定是按字符串
+  比较的，所以写完立刻再 `Save` 一次会把 `extra` 多更新一遍——结果幂等，但会多一条写。
+  要避免这次多余写入，就在 `Load` 之后以库里的值为基准比较。
 
 ## 时间列精度
 

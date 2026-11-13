@@ -7,7 +7,8 @@ CREATE TABLE `cclehui_test_a` (
   `version` int(10) unsigned NOT NULL DEFAULT '99' COMMENT 'test' ,
   `weight` decimal(10,2) unsigned NOT NULL DEFAULT '0.00' COMMENT 'test',
   `age` datetime NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT 'test',
-  `extra` varchar(255) NOT NULL DEFAULT '' COMMENT 'test',
+  `name` varchar(64) NOT NULL DEFAULT '' COMMENT 'test',
+  `extra` json NOT NULL DEFAULT (json_object()) COMMENT 'test',
   `created_at` datetime(3) NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '创建时间',
   `updated_at` datetime(3) NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '更新时间',
   PRIMARY KEY (`id`)

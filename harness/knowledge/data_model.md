@@ -30,8 +30,9 @@ func NewCclehuiTestADao(ctx context.Context, myDao *CclehuiTestADao,
 ```
 
 - 单个 DAO 文件内的顺序固定为：`struct` → `init()`（`RegisterModel`）→ `NewXxxDao` →
-  `DBName` / `TableName` / `DBClient` / `GetDaoBase` / `SetDaoBase`。
-  每个 DAO 在自己的文件里注册，不要再建集中的 `init.go`。
+  `DBName` / `TableName` / `DBClient` / `GetDaoBase` / `SetDaoBase` → 私有 helper。
+  即"公开方法在前、私有 helper 在后"，通用约定见 `harness/coding_style.md` 的
+  「结构内聚与函数顺序」。每个 DAO 在自己的文件里注册，不要再建集中的 `init.go`。
 - struct 名/字段名不用和表/列一致，但必须通过 `gorm:"column:..."` 显式声明列名。
   没写 `column:` 时按字段名转 snake_case，容易和实际表结构对不上。
 - 主键必须有 `primaryKey`，联合主键在多个字段上各标一次。

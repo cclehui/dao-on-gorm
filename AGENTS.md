@@ -73,6 +73,15 @@ cd examples && go test ./...                    # 集成测试（需要 MySQL + 
 - **时间精度按列声明**，不要引入全局精度开关：不同表的 `datetime(n)` 不同。
 - 不允许打印或缓存密钥类字段（`client_secret`、证书私钥等）；缓存值即整行结构体，定义 DAO 时注意。
 
+## 代码组织（全仓通用）
+
+- **结构内聚**：helper 用到了哪个类型的状态，就写成那个类型的方法；不要摊成包级函数、包级
+  变量/常量。能用方法里的 `switch` 表达的白名单，就不要留包级 map。
+- **函数顺序**：构造 → 公开方法 → 私有 helper。私有 helper 一律放在同类型所有公开方法**之后**，
+  读文件时先看到接口，再看到实现细节。
+- DAO 文件的具体顺序见 `harness/knowledge/data_model.md`；完整约束见
+  `harness/coding_style.md` 的「结构内聚与函数顺序」。
+
 ## 文档维护
 
 - `harness/knowledge/` 放**事实**（行为、契约、为什么这么设计），`harness/coding_style.md` 放**约束**。

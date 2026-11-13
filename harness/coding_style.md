@@ -30,6 +30,25 @@
   不这么做会坏什么（例如 `clause.Locking`、`Round` 而不是 `Truncate`、事务内延迟失效缓存）。
 - 不要为了让注释“好看”而删掉解释原因的段落；这些段落是防止后人“简化”的护栏。
 
+## 结构内聚与函数顺序
+
+同一个类型的代码要**内聚**：属于谁的行为就写成谁的方法，不要摊成包级函数或包级变量/常量。
+
+- 判断标准：这个 helper 用到了哪个类型的字段/状态，就挂到那个类型上。
+  `GetDataListParams` 的默认 Limit、排序白名单、过滤条件都属于 selector 的查询逻辑，
+  所以写成 `func (selector *XxxSelector) orderColumn(params *XxxParams)`，
+  而不是 `func (params *XxxParams) orderColumn()` 或包级 `applyXxx(query, params)`。
+- 列表与它的 count 共用同一套过滤 helper，保证口径一致，不要各写一遍。
+- 非要把常量/映射放包级时先想一下：能不能换成方法里的 `switch`？能就别留包级状态。
+
+**函数顺序**（同一个类型）：
+
+1. 构造相关：`NewXxx`（多个时就一个入口收 Option）
+2. 公开方法：查询 → 写操作，按调用方常用顺序
+3. 私有 helper：**放在所有公开方法之后**，调用方读文件时先看到接口再看到实现细节
+
+DAO 文件的具体顺序见 `knowledge/data_model.md`（`struct` → `init()` → `NewXxxDao` → 接口方法）。
+
 ## 错误
 
 - 库内部用 `github.com/pkg/errors`（`New` / `Wrapf` / `WithStack`），保留堆栈。

@@ -513,7 +513,7 @@ func TestCclehuiTestAService_CreateUpdateDelete(t *testing.T) {
 	assert.Equal(t, err, nil)
 	assert.Equal(t, updated.Name, "service_updated")
 
-	fromDB, err := selector.GetDataByID(ctx, created.ID)
+	fromDB, err := loadReadOnlyDao(ctx, created.ID)
 	assert.Equal(t, err, nil)
 	assert.Equal(t, fromDB.Name, "service_updated")
 	assert.Equal(t, fromDB.Version, int64(10))
@@ -556,7 +556,6 @@ func TestCclehuiTestAService_CreateUpdateDelete(t *testing.T) {
 func TestCclehuiTestAService_UpdateWithDao(t *testing.T) {
 	ctx := context.Background()
 	service := &CclehuiTestAService{}
-	selector := &CclehuiTestASelector{}
 
 	created, err := service.Create(ctx, &CreateCclehuiTestAParams{
 		Version: 7,
@@ -577,7 +576,7 @@ func TestCclehuiTestAService_UpdateWithDao(t *testing.T) {
 	assert.Equal(t, err, nil)
 	assert.Equal(t, updated.GetDaoBase().IsNewRow(), false)
 
-	fromDB, err := selector.GetDataByID(ctx, created.ID)
+	fromDB, err := loadReadOnlyDao(ctx, created.ID)
 	assert.Equal(t, err, nil)
 	assert.Equal(t, fromDB.Name, "dao_param_new")
 	assert.Equal(t, fromDB.Version, int64(7))
@@ -596,7 +595,7 @@ func TestCclehuiTestAService_UpdateWithDao(t *testing.T) {
 	_, err = service.Update(ctx, zero)
 	assert.Equal(t, err, nil)
 
-	fromDB, err = selector.GetDataByID(ctx, created.ID)
+	fromDB, err = loadReadOnlyDao(ctx, created.ID)
 	assert.Equal(t, err, nil)
 	assert.Equal(t, fromDB.Version, int64(0))
 
@@ -610,8 +609,8 @@ func TestCclehuiTestAService_UpdateWithDao(t *testing.T) {
 	_, err = service.Update(ctx, &model.CclehuiTestADao{ID: created.ID})
 	assert.NotEqual(t, err, nil)
 
-	// selector 返回的只读 DAO 也要拒绝(写不进去, 且基线可能来自读副本)
-	readOnly, err := selector.GetDataByID(ctx, created.ID)
+	// 只读 DAO 也要拒绝(写不进去)
+	readOnly, err := loadReadOnlyDao(ctx, created.ID)
 	assert.Equal(t, err, nil)
 	_, err = service.Update(ctx, readOnly)
 	assert.NotEqual(t, err, nil)
@@ -624,7 +623,92 @@ func TestCclehuiTestAService_UpdateWithDao(t *testing.T) {
 	assert.NotEqual(t, err, nil)
 }
 
+// loadReadOnlyDao 用默认(只读)模式 Load 一行: 走缓存 + 读副本.
+func loadReadOnlyDao(ctx context.Context, id int) (*model.CclehuiTestADao, error) {
+	return model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: id})
+}
+
 // loadWritableDao 用可写模式 Load 一行, 供 service.Update 使用.
 func loadWritableDao(ctx context.Context, id int) (*model.CclehuiTestADao, error) {
 	return model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: id}, daoongorm.OptionSetReadOnly(false))
+}
+
+// 列表查询的排序与计数
+func TestCclehuiTestASelector_OrderAndCount(t *testing.T) {
+	ctx := context.Background()
+	selector := &CclehuiTestASelector{}
+
+	var ids []int
+	for i := 0; i < 3; i++ {
+		testDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{},
+			daoongorm.OptionSetReadOnly(false))
+		assert.Equal(t, err, nil)
+		testDao.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
+		testDao.Name = fmt.Sprintf("order_%d", i)
+		testDao.Version = int64(100 - i) // 与 id 顺序相反, 便于验证排序生效
+		testDao.Extra = `{"tag":"order"}`
+		assert.Equal(t, testDao.GetDaoBase().Save(ctx), nil)
+		ids = append(ids, testDao.ID)
+	}
+	defer func() {
+		for _, id := range ids {
+			d, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: id},
+				daoongorm.OptionSetReadOnly(false))
+			assert.Equal(t, err, nil)
+			assert.Equal(t, d.GetDaoBase().Delete(ctx), nil)
+		}
+	}()
+
+	// 默认 id 升序
+	asc, err := selector.GetDataList(ctx, &GetDataListParams{NameLike: "order_"})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(asc), 3)
+	assert.True(t, asc[0].ID < asc[1].ID)
+
+	// 显式降序
+	desc, err := selector.GetDataList(ctx, &GetDataListParams{NameLike: "order_", OrderBy: "id", OrderDesc: true})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(desc), 3)
+	assert.True(t, desc[0].ID > desc[1].ID)
+
+	// 按其它白名单列排序
+	byVersion, err := selector.GetDataList(ctx, &GetDataListParams{NameLike: "order_", OrderBy: "version"})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(byVersion), 3)
+	assert.True(t, byVersion[0].Version < byVersion[1].Version)
+
+	// 大小写与空格不敏感
+	mixed, err := selector.GetDataList(ctx, &GetDataListParams{NameLike: "order_", OrderBy: " NAME "})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(mixed), 3)
+
+	// 不在白名单里的列必须报错, 不能拼进 SQL
+	_, err = selector.GetDataList(ctx, &GetDataListParams{NameLike: "order_", OrderBy: "id; drop table cclehui_test_a"})
+	assert.NotEqual(t, err, nil)
+	_, err = selector.GetDataList(ctx, &GetDataListParams{OrderBy: "not_a_column"})
+	assert.NotEqual(t, err, nil)
+
+	// count 与 list 口径一致(同一个过滤 + 网络游标)
+	count, err := selector.GetDataListCount(ctx, &GetDataListParams{NameLike: "order_"})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, count, int64(3))
+
+	count, err = selector.GetDataListCount(ctx, &GetDataListParams{NameLike: "order_", LastID: asc[1].ID})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, count, int64(1))
+
+	// 精确匹配 + 游标都要生效
+	count, err = selector.GetDataListCount(ctx, &GetDataListParams{Name: "order_0"})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, count, int64(1))
+
+	// Limit / OrderBy 不影响 count
+	count, err = selector.GetDataListCount(ctx, &GetDataListParams{NameLike: "order_", Limit: 1, OrderBy: "version", OrderDesc: true})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, count, int64(3))
+
+	// nil params 也可以
+	count, err = selector.GetDataListCount(ctx, nil)
+	assert.Equal(t, err, nil)
+	assert.True(t, count >= 3)
 }

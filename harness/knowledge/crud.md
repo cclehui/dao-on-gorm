@@ -95,9 +95,9 @@ err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClien
 - 没 Load 时 `IsNewRow()` 默认是 true，`Save` 会走 `Create`，"更新不存在的数据"变成插入；
 - 用 `&Dao{ID: 1, Name: "x"}` 这种只填几列的结构体，没填的 `Age` 是零值 `time.Time`，
   MySQL 直接报 `1292 Incorrect datetime value: '0000-00-00'`；
-- **不要用 selector 查出来的 DAO**：`GetDataByID` 走 `ReadOnlyTable` + `NewDaoBaseNoLoad`，
-  它是只读的，写不进去，而且读的是副本、基线可能已经过期。更新要用
-  `NewCclehuiTestADao(ctx, &Dao{ID: x}, false)` 做可写 Load。
+- **按主键读一行就用 `NewXxxDao`，不要另写 selector 方法**：构造即 Load，缓存与读副本
+  都由构造时的 Option 决定。默认只读，写不进去；更新要传
+  `OptionSetReadOnly(false)` 做可写 Load（基线来自主库，而不是可能过期的副本）。
 
 Create 时在 service 里把复杂参数编码成列值。示例把编解码方法放在类型自己身上：
 `(*CclehuiTestAExtra).ToJSON()` / `(*CclehuiTestADao).GetExtra()`，service 只负责传结构体，
@@ -105,13 +105,21 @@ Create 时在 service 里把复杂参数编码成列值。示例把编解码方�
 
 ## 列表查询（selector）
 
-单行 DAO 只负责按主键读写一行，**列表/条件查询不属于 DaoBase**，写在 selector 里，直接用
+单行 DAO 只负责按主键读写一行（用 `NewXxxDao` 构造即 Load）；**列表/条件查询不属于 DaoBase**，
+写在 selector 里，直接用
 `ReadOnlyTable(...).Select("*").Where(...).Find(&list)`。
 
 - 分页用游标（`id > ?` + `ORDER BY id`），不要用 `OFFSET`：翻页期间删行会漏数据。
 - `Find` 出来的结构体没有 `daoBase`，要补 `NewDaoBaseNoLoad`，否则调用方拿到的对象不能
   用统一的只读视图（写操作也不会报 `readOnly`）。
 - 参数收成一个 `XxxParams` struct：新增条件时不用改方法签名，调用方也看得懂每个字段含义。
+  查询相关的辅助逻辑（默认 Limit、排序白名单、过滤条件）写成 **selector 的私有方法**
+  （`func (selector *XxxSelector) orderColumn(params *XxxParams)`），放在公开查询方法之后，
+  不要散成包级变量/常量或包级函数。
+- 列表和它的总数共用一个 `XxxParams`，过滤条件走同一个 `applyFilters`，保证两边口径一致；
+  `Limit` / `OrderBy` 只影响 list，不影响 count。
+- `ORDER BY` 的列名是标识符，`?` 绑定不了，必须走**白名单**（`orderColumn()` 里的 switch），
+  把调用方的字符串直接拼进 SQL 就是注入。
 - `LIKE` 的用户输入必须转义 `%` / `_` / `\`，否则 `a_b` 会匹配 `axb`，`%` 会变成"匹配所有"。
   统一用 `utils.SQLUtil.LikeContains(...)` + `escape '\'`，不要在 selector 里自己拼。
   注意这是**匹配语义**问题；注入防护靠绑定参数，见 [sql_injection.md](./sql_injection.md)。

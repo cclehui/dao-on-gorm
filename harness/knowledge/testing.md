@@ -5,9 +5,18 @@
 | 层 | 位置 | 依赖 | 跑法 |
 |---|---|---|---|
 | 纯单元 | 根目录 `*_test.go`（`model_test.go` / `dao_base_test.go` / `db_client_test.go` / `cache_test.go`） | 无 | `go test .` |
-| 集成 | `examples/dao_test.go` | 真实 MySQL + redis | `go test ./examples/` |
+| 集成 | `examples/dao_test.go`（独立 module） | 真实 MySQL + redis | `cd examples && go test ./...` |
 
-`go test ./...` 会同时跑两层，没起容器时 examples 必然失败。只改纯逻辑时用 `go test .` 快速迭代。
+`examples/` 是**独立的 Go module**（`examples/go.mod`，通过 `replace` 指向仓库根目录），
+所以 examples 用到的 redis / testify / yaml 依赖不会进入根 `go.mod`，下游引用本库时不会被动引入。
+
+因此根目录的 `go test ./...` **只跑单元测试**，也不会编译 examples；改动 examples 时要显式进入子模块：
+
+```bash
+go build ./...                      # 根模块
+go test .                           # 单元测试
+cd examples && go build ./... && go vet ./...   # examples 编译检查
+```
 
 ## 单元测试覆盖什么
 
@@ -43,7 +52,7 @@ awk '!/^```/' examples/sql.md | docker exec -i daoongorm-it mysql -uroot -p12345
 **跑完 `git checkout -- examples/config_demo.yaml`**，不要把本地测试配置提交进去。
 
 ```bash
-go test ./examples/ -v
+cd examples && go test ./... -v
 docker stop daoongorm-it daoongorm-redis
 ```
 

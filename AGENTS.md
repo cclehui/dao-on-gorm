@@ -29,9 +29,14 @@ Save / Delete`，并在主键维度做自动缓存、自动填充 `created_at` /
 # 单元测试（不需要任何外部依赖）
 go build ./... && go vet ./... && go test .
 
-# 全量（examples 需要 MySQL + redis，见 harness/knowledge/testing.md）
-go test ./...
+# examples 是独立 module（examples/go.mod），不在根模块的 ./... 里
+cd examples && go build ./... && go vet ./...   # 编译检查
+cd examples && go test ./...                    # 集成测试（需要 MySQL + redis）
 ```
+
+`examples` 独立成 module 是有意的：redis / testify / yaml 只有 examples 用，不能污染根
+`go.mod`——下游 `go get` 本库时不该被带动引入这些依赖。新增 examples 依赖时改
+`examples/go.mod`，不要加回根模块。
 
 ## 提交需要明确指令
 

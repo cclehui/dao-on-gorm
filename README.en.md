@@ -250,11 +250,14 @@ mysql:
 # Unit tests: no external services required
 go build ./... && go vet ./... && go test .
 
-# Integration tests: require a real MySQL + Redis
-go test ./examples/ -v
+# Integration tests: require a real MySQL + Redis (examples is a nested module)
+cd examples && go test ./... -v
 ```
 
-The [examples/](./examples) directory contains a complete integration example:
+The [examples/](./examples) directory contains a complete integration example and is a **separate Go
+module** (`examples/go.mod`, wired to the repository root via `replace`). Example-only dependencies such
+as Redis, testify, and yaml therefore stay out of the root `go.mod` and are never pulled in by consumers
+of this library.
 
 - [examples/dao_test.go](./examples/dao_test.go): CRUD, caching, transactions
 - [examples/cache_util_demo.go](./examples/cache_util_demo.go): a redigo-based `CacheInterface`

@@ -241,11 +241,13 @@ mysql:
 # 单元测试：不依赖任何外部服务
 go build ./... && go vet ./... && go test .
 
-# 集成测试：需要真实 MySQL + redis
-go test ./examples/ -v
+# 集成测试：需要真实 MySQL + redis（examples 是独立 module）
+cd examples && go test ./... -v
 ```
 
-[examples/](./examples) 是完整的集成示例：
+[examples/](./examples) 是完整的集成示例，并且是一个**独立的 Go module**（`examples/go.mod`，
+通过 `replace` 指向仓库根目录）：redis、testify、yaml 这些只有示例才用的依赖不会进入根 `go.mod`，
+下游 `go get` 本库时也不会被被动引入。
 
 - [examples/dao_test.go](./examples/dao_test.go)：CRUD、缓存、事务
 - [examples/cache_util_demo.go](./examples/cache_util_demo.go)：基于 redigo 的 `CacheInterface` 实现

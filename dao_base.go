@@ -202,7 +202,7 @@ func (daoBase *DaoBase) Update(ctx context.Context) error {
 	}
 
 	if daoBase.primaryKeyIsEmpty() {
-		return errors.New("主键ID为空")
+		return errors.New("primary key ID is empty")
 	}
 
 	daoBase.updateAutoFillValue() // 自动填充某些字段
@@ -249,7 +249,7 @@ func (daoBase *DaoBase) Delete(ctx context.Context) error {
 	}
 
 	if daoBase.primaryKeyIsEmpty() {
-		return errors.New("主键ID为空")
+		return errors.New("primary key ID is empty")
 	}
 
 	pkFieldCondsStr, pkFieldValues := daoBase.getPKFieldsWhereAndValues()

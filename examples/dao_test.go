@@ -478,3 +478,150 @@ func TestCclehuiTestASelector_GetDataList(t *testing.T) {
 		assert.Equal(t, testDao.GetDaoBase().Delete(ctx), nil)
 	}
 }
+
+// service 层写操作示例：Create / Update / Delete
+func TestCclehuiTestAService_CreateUpdateDelete(t *testing.T) {
+	ctx := context.Background()
+	service := &CclehuiTestAService{}
+	selector := &CclehuiTestASelector{}
+
+	// Create: extra 传结构体, service 负责编码, ID/时间由库填充
+	created, err := service.Create(ctx, &CreateCclehuiTestAParams{
+		Version: 10,
+		Weight:  2.5,
+		Age:     time.Date(1990, 5, 6, 7, 8, 9, 0, time.UTC),
+		Name:    "service_create",
+		Extra:   &model.CclehuiTestAExtra{Tag: "svc", Score: 9},
+	})
+	assert.Equal(t, err, nil)
+	assert.True(t, created.ID > 0)
+	assert.Equal(t, created.GetDaoBase().IsNewRow(), false)
+	assert.True(t, !created.CreatedAt.IsZero())
+
+	// 先 Load(可写) 再改: 只改 name 和 extra, 其他列保持原值
+	toUpdate, err := loadWritableDao(ctx, created.ID)
+	assert.Equal(t, err, nil)
+	toUpdate.Name = "service_updated"
+	toUpdate.Version = 10
+	toUpdate.Extra, err = (&model.CclehuiTestAExtra{Tag: "svc2", Score: 42}).ToJSON()
+	assert.Equal(t, err, nil)
+
+	updated, err := service.Update(ctx, toUpdate)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, updated.Name, "service_updated")
+
+	fromDB, err := selector.GetDataByID(ctx, created.ID)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, fromDB.Name, "service_updated")
+	assert.Equal(t, fromDB.Version, int64(10))
+	assert.Equal(t, fromDB.Weight, 2.5) // 没传 weight, 不能被零值覆盖
+
+	extra, err := fromDB.GetExtra()
+	assert.Equal(t, err, nil)
+	assert.Equal(t, extra.Tag, "svc2")
+	assert.Equal(t, extra.Score, 42)
+
+	// 更新不存在的数据必须报错, 不能被 Save 静默降级成 INSERT
+	missing, err := loadWritableDao(ctx, created.ID+100000)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, missing.GetDaoBase().IsNewRow(), true)
+	_, err = service.Update(ctx, missing)
+	assert.NotEqual(t, err, nil)
+
+	// 没 Load 过的空 DAO 也要拦下来
+	_, err = service.Update(ctx, &model.CclehuiTestADao{ID: created.ID})
+	assert.NotEqual(t, err, nil)
+
+	// Delete
+	assert.Equal(t, service.Delete(ctx, created.ID), nil)
+	count, err := selector.GetDataCountByID(ctx, created.ID)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, count, int64(0))
+
+	// 重复删除不报错
+	assert.Equal(t, service.Delete(ctx, created.ID), nil)
+
+	// 参数校验
+	_, err = service.Create(ctx, nil)
+	assert.NotEqual(t, err, nil)
+	_, err = service.Update(ctx, nil)
+	assert.NotEqual(t, err, nil)
+	assert.NotEqual(t, service.Delete(ctx, 0), nil)
+}
+
+// Update 接收已 Load 的 DAO: 只改想改的字段, 未改的列保持库里原值, 零值也能表达
+func TestCclehuiTestAService_UpdateWithDao(t *testing.T) {
+	ctx := context.Background()
+	service := &CclehuiTestAService{}
+	selector := &CclehuiTestASelector{}
+
+	created, err := service.Create(ctx, &CreateCclehuiTestAParams{
+		Version: 7,
+		Weight:  3.5,
+		Age:     time.Date(1991, 2, 3, 4, 5, 6, 0, time.UTC),
+		Name:    "dao_param_orig",
+		Extra:   &model.CclehuiTestAExtra{Tag: "orig", Score: 1},
+	})
+	assert.Equal(t, err, nil)
+	defer service.Delete(ctx, created.ID)
+
+	// 先 Load(可写), 只改 name
+	toUpdate, err := loadWritableDao(ctx, created.ID)
+	assert.Equal(t, err, nil)
+	toUpdate.Name = "dao_param_new"
+
+	updated, err := service.Update(ctx, toUpdate)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, updated.GetDaoBase().IsNewRow(), false)
+
+	fromDB, err := selector.GetDataByID(ctx, created.ID)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, fromDB.Name, "dao_param_new")
+	assert.Equal(t, fromDB.Version, int64(7))
+	assert.Equal(t, fromDB.Weight, 3.5)
+	assert.True(t, fromDB.Age.Equal(created.Age))
+
+	extra, err := fromDB.GetExtra()
+	assert.Equal(t, err, nil)
+	assert.Equal(t, extra.Tag, "orig")
+	assert.Equal(t, extra.Score, 1)
+
+	// 零值可以显式写入(这是"先 Load 再改"的收益)
+	zero, err := loadWritableDao(ctx, created.ID)
+	assert.Equal(t, err, nil)
+	zero.Version = 0
+	_, err = service.Update(ctx, zero)
+	assert.Equal(t, err, nil)
+
+	fromDB, err = selector.GetDataByID(ctx, created.ID)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, fromDB.Version, int64(0))
+
+	// 没改动时 Save 只 touch updated_at, 不应报错
+	noop, err := loadWritableDao(ctx, created.ID)
+	assert.Equal(t, err, nil)
+	_, err = service.Update(ctx, noop)
+	assert.Equal(t, err, nil)
+
+	// 没 Load 过的 DAO 必须报错, 不能被 Save 降级成 INSERT
+	_, err = service.Update(ctx, &model.CclehuiTestADao{ID: created.ID})
+	assert.NotEqual(t, err, nil)
+
+	// selector 返回的只读 DAO 也要拒绝(写不进去, 且基线可能来自读副本)
+	readOnly, err := selector.GetDataByID(ctx, created.ID)
+	assert.Equal(t, err, nil)
+	_, err = service.Update(ctx, readOnly)
+	assert.NotEqual(t, err, nil)
+
+	// 已 Load 但行不存在: IsNewRow 为 true, 同样报错
+	missing, err := loadWritableDao(ctx, created.ID+100000)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, missing.GetDaoBase().IsNewRow(), true)
+	_, err = service.Update(ctx, missing)
+	assert.NotEqual(t, err, nil)
+}
+
+// loadWritableDao 用可写模式 Load 一行, 供 service.Update 使用.
+func loadWritableDao(ctx context.Context, id int) (*model.CclehuiTestADao, error) {
+	return model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: id}, false)
+}

@@ -88,9 +88,26 @@ func (myDao *CclehuiTestADao) GetExtra() (*CclehuiTestAExtra, error) {
 	}
 
 	if err := json.Unmarshal([]byte(myDao.Extra), extra); err != nil {
-		return nil, errors.Wrapf(err, "解析 extra 失败, table:%s, id:%d, extra:%s",
+		return nil, errors.Wrapf(err, "decode extra failed, table:%s, id:%d, extra:%s",
 			myDao.TableName(), myDao.ID, myDao.Extra)
 	}
 
 	return extra, nil
+}
+
+// ToJSON 把结构体编码成 extra 列需要的 JSON 文本.
+//
+// nil 接收者返回 "{}": JSON 列不接受空串, 而且新建行时零值就是空串.
+// 和 DAO 上的 GetExtra 对称, 编解码都放在这个类型上, service 只负责传结构体.
+func (extra *CclehuiTestAExtra) ToJSON() (string, error) {
+	if extra == nil {
+		return "{}", nil
+	}
+
+	encoded, err := json.Marshal(extra)
+	if err != nil {
+		return "", errors.Wrap(err, "encode extra failed")
+	}
+
+	return string(encoded), nil
 }

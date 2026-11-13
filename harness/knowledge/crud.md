@@ -30,7 +30,7 @@
 
 ## Update
 
-1. 必须 `isLoaded` 且有主键，否则报错（`需要先Load` / `主键ID为空`）。
+1. 必须 `isLoaded` 且有主键，否则报错（`需要先Load` / `primary key ID is empty`）。
 2. `updateAutoFillValue`：调用方**没有**改过 `updated_at` 时，把它 touch 成当前时间。
 3. `roundTimeFields`。
 4. `changedColumnValues`：与 `oldDataMap` 比较，**只 UPDATE 有变化的非主键列**。
@@ -51,7 +51,7 @@
 
 ## Delete
 
-- 必须有主键，否则 `主键ID为空`。
+- 必须有主键，否则 `primary key ID is empty`。
 - 按主键 `WHERE` 删除（不是把整个 model 交给 gorm）。
 - 删除缓存：事务外立即删，事务内延迟到提交后。
 - **物理删除**，本库没有软删概念；需要软删就在业务侧用状态列 + 自定义 selector。
@@ -80,6 +80,28 @@ err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClien
 `NewDaoBaseNoLoad(model)` 给“已经用原生 SQL 查出数据”的场景：拿到 daoBase 后可以
 `Save`/`Delete`/`CacheKey`，但它的 `isReadOnly = true`，写操作会返回 `readOnly`。
 需要写就用 `NewDaoBase`。
+
+## 写操作（service）
+
+示例见 `examples/cclehui_test_a_service.go`：selector 只读，**写操作放 service**，负责参数组装与
+业务校验，落库仍走 `DaoBase`。
+
+核心约定：**先可写 Load → 改字段 → `Save`**。service 只做校验，不搬运字段。
+`Update` 的基线是 `Load` 那一刻的库值，所以只改想改的字段就够，没改的列不会进 UPDATE，
+零值也能表达（"把 version 改成 0"）。
+
+代价是调用方必须先 Load，没 Load 就报错——这是刻意的：
+
+- 没 Load 时 `IsNewRow()` 默认是 true，`Save` 会走 `Create`，"更新不存在的数据"变成插入；
+- 用 `&Dao{ID: 1, Name: "x"}` 这种只填几列的结构体，没填的 `Age` 是零值 `time.Time`，
+  MySQL 直接报 `1292 Incorrect datetime value: '0000-00-00'`；
+- **不要用 selector 查出来的 DAO**：`GetDataByID` 走 `ReadOnlyTable` + `NewDaoBaseNoLoad`，
+  它是只读的，写不进去，而且读的是副本、基线可能已经过期。更新要用
+  `NewCclehuiTestADao(ctx, &Dao{ID: x}, false)` 做可写 Load。
+
+Create 时在 service 里把复杂参数编码成列值。示例把编解码方法放在类型自己身上：
+`(*CclehuiTestAExtra).ToJSON()` / `(*CclehuiTestADao).GetExtra()`，service 只负责传结构体，
+调用方不用关心 `column_default:{}` 这类存储细节。`ToJSON` 的 nil 接收者返回 `{}`。
 
 ## 列表查询（selector）
 

@@ -33,8 +33,10 @@
 ## 错误
 
 - 库内部用 `github.com/pkg/errors`（`New` / `Wrapf` / `WithStack`），保留堆栈。
-- 面向调用方的**用法错误**用 `errors.New("...")` 直接返回，例如 `readOnly`、`主键ID为空`。
-  这是既有约定，examples 也依赖这些错误出现；不要改成 panic，也不要静默忽略。
+- 面向调用方的**用法错误**用 `errors.New("...")` 直接返回，例如 `readOnly`、
+  `primary key ID is empty`。这是既有约定，examples 也依赖这些错误出现；不要改成 panic，
+  也不要静默忽略。
+- 错误信息**统一用英文**：错误会被日志、监控、上层服务直接消费。注释仍然用中文。
 - 不要吞掉 DB 错误：`Create/Update/Delete/Load` 一律把 `*gorm.DB` 的 `Error` 返回给调用方。
 - **缓存错误例外**：`setCache` / `deleteCache` 只记日志（`logger.Errorf`），不影响主流程返回。
   缓存不可用不能让写操作失败，这是有意的取舍。

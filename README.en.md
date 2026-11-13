@@ -262,6 +262,10 @@ of this library.
 - [examples/dao_test.go](./examples/dao_test.go): CRUD, caching, transactions
 - [examples/model/](./examples/model): DAO structs (A/B/C/D covering the primary-key and timestamp
   variations) and model registration
+- [examples/cclehui_test_a_selector.go](./examples/cclehui_test_a_selector.go): read queries (single
+  row, count, filtered list with cursor paging)
+- [examples/cclehui_test_a_service.go](./examples/cclehui_test_a_service.go): writes (Create / Update /
+  Delete)
 - [examples/global/](./examples/global): config loading, lazy `DBClient` / cache setup, and a
   redigo-based `CacheInterface`
 - [examples/config_demo.yaml](./examples/config_demo.yaml): MySQL / Redis connection settings

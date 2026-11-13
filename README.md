@@ -251,6 +251,8 @@ cd examples && go test ./... -v
 
 - [examples/dao_test.go](./examples/dao_test.go)：CRUD、缓存、事务
 - [examples/model/](./examples/model)：DAO 结构体（A/B/C/D 四种主键/时间列形态）与模型注册
+- [examples/cclehui_test_a_selector.go](./examples/cclehui_test_a_selector.go)：只读查询（单行 / 计数 / 列表过滤分页）
+- [examples/cclehui_test_a_service.go](./examples/cclehui_test_a_service.go)：写操作（Create / Update / Delete）
 - [examples/global/](./examples/global)：配置加载、`DBClient` / 缓存组件的懒加载，以及基于 redigo 的
   `CacheInterface` 实现
 - [examples/config_demo.yaml](./examples/config_demo.yaml)：MySQL / redis 连接配置

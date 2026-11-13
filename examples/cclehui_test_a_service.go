@@ -57,7 +57,7 @@ func (service *CclehuiTestAService) Create(ctx context.Context, params *CreateCc
 
 	newDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{}, options...)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	newDao.Version = params.Version
@@ -67,7 +67,7 @@ func (service *CclehuiTestAService) Create(ctx context.Context, params *CreateCc
 	newDao.Extra = extraStr
 
 	if err := newDao.GetDaoBase().Create(ctx); err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	return newDao, nil
@@ -106,6 +106,7 @@ func (service *CclehuiTestAService) Update(ctx context.Context, updateDao *model
 		return nil, errors.New("updateDao has no DaoBase, load it with NewCclehuiTestADao first")
 	}
 
+	// Wrapf 只补"哪一行"这个上下文, 不改写原因, 也不新增堆栈(DaoBase 已经带过一次).
 	if err := daoBase.Update(ctx, options...); err != nil {
 		return nil, errors.Wrapf(err, "update failed, id:%d", updateDao.ID)
 	}
@@ -126,11 +127,11 @@ func (service *CclehuiTestAService) Delete(ctx context.Context, dataID int,
 
 	deleteDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: dataID}, options...)
 	if err != nil {
-		return errors.WithStack(err)
+		return err
 	}
 
 	if err := deleteDao.GetDaoBase().Delete(ctx); err != nil {
-		return errors.WithStack(err)
+		return err
 	}
 
 	return nil

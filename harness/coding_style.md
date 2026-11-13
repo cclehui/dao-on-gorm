@@ -52,6 +52,12 @@ DAO 文件的具体顺序见 `knowledge/data_model.md`（`struct` → `init()` �
 ## 错误
 
 - 库内部用 `github.com/pkg/errors`（`New` / `Wrapf` / `WithStack`），保留堆栈。
+- **堆栈只加一次，加在"错误第一次进入本库"的边界上**：`DaoBase` 的用法错误用
+  `errors.New`、DB 错误用 `errors.WithStack`（gorm 的 error 没有堆栈）。调用方拿到后直接
+  `return err`，不要再 `WithStack`/`Wrapf` —— 重复包裹只会让同一个错误出现多层堆栈，
+  排查时反而要跳过无用帧。需要补上下文（如主键、表名）用 `Wrapf`，它会保留原堆栈。
+- 例外：自己直接调 gorm/驱动、不经过 `DaoBase` 的代码（selector 这类只读查询就是），
+  错误没有堆栈，要在这里加一次 `WithStack`。
 - 面向调用方的**用法错误**用 `errors.New("...")` 直接返回，例如 `readOnly`、
   `primary key ID is empty`。这是既有约定，examples 也依赖这些错误出现；不要改成 panic，
   也不要静默忽略。

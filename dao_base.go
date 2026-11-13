@@ -153,7 +153,7 @@ func (daoBase *DaoBase) Load(ctx context.Context) error {
 	}
 
 	if newDB.Error != nil {
-		return newDB.Error
+		return errors.WithStack(newDB.Error)
 	}
 
 	daoBase.isNewRow = newDB.RowsAffected < 1
@@ -179,7 +179,7 @@ func (daoBase *DaoBase) Create(ctx context.Context) error {
 	db := daoBase.DBClient()
 
 	if err := db.Table(ctx, daoBase.TableName()).Create(daoBase.modelImpl).Error; err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	daoBase.isNewRow = false
@@ -230,7 +230,7 @@ func (daoBase *DaoBase) Update(ctx context.Context, options ...UpdateOption) err
 		Where(pkFieldCondsStr, pkFieldValues...).Updates(updateValueMap)
 
 	if newDB.Error != nil {
-		return newDB.Error
+		return errors.WithStack(newDB.Error)
 	}
 
 	daoBase.oldDataMap = daoBase.columnSnapshot()
@@ -272,7 +272,7 @@ func (daoBase *DaoBase) Delete(ctx context.Context) error {
 		Where(pkFieldCondsStr, pkFieldValues...).Delete(daoBase.modelImpl)
 
 	if newDB.Error != nil {
-		return newDB.Error
+		return errors.WithStack(newDB.Error)
 	}
 
 	daoBase.invalidateCache(ctx)

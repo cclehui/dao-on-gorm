@@ -17,6 +17,7 @@
 | `examples/` | 可运行的集成示例 + 集成测试；**不是**生产代码 |
 | `examples/model/` | 示例 DAO 结构体与注册；依赖 `examples/global` 拿 DBClient |
 | `examples/global/` | 示例的配置、DBClient、缓存组件初始化；不 import `model`，避免成环 |
+| `examples/utils/` | 示例用的无状态工具；按 `type XxxUtilType struct{}` + `var XxxUtil XxxUtilType` 定义方法 |
 
 新增能力优先放进已有的 owner 文件；确实需要新文件时按上表的粒度拆，不要建 `util.go`。
 

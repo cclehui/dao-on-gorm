@@ -404,3 +404,77 @@ func TestCclehuiTestDao_WithTX(t *testing.T) {
 	assert.True(t, nowTime.Sub(testDaoDCheck.UpdatedAt) < time.Second*10)
 	assert.True(t, testDaoDCheck.Extra != "")
 }
+
+// 列表查询：游标分页 + name 精确匹配 / 模糊匹配
+func TestCclehuiTestASelector_GetDataList(t *testing.T) {
+	ctx := context.Background()
+
+	names := []string{"list_alpha", "list_axb", "list_beta", "other_alpha"}
+	var ids []int
+	for _, name := range names {
+		testDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{}, false)
+		assert.Equal(t, err, nil)
+		testDao.Age, _ = time.Parse("2006-01-02 15:04:05", "1989-03-18 10:24:32")
+		testDao.Name = name
+		testDao.Extra = `{"tag":"list"}`
+		assert.Equal(t, testDao.GetDaoBase().Save(ctx), nil)
+		ids = append(ids, testDao.ID)
+	}
+
+	selector := &CclehuiTestASelector{}
+
+	// 不带过滤条件：能查到刚插入的行, 且按 id 升序
+	all, err := selector.GetDataList(ctx, &GetDataListParams{})
+	assert.Equal(t, err, nil)
+	assert.True(t, len(all) >= len(names))
+	for i := 1; i < len(all); i++ {
+		assert.True(t, all[i-1].ID < all[i].ID)
+	}
+	for _, item := range all {
+		assert.NotEqual(t, item.GetDaoBase(), nil) // 每行都补了只读 daoBase
+	}
+
+	// name 精确匹配
+	exact, err := selector.GetDataList(ctx, &GetDataListParams{Name: "list_beta"})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(exact), 1)
+	assert.Equal(t, exact[0].Name, "list_beta")
+
+	// name 模糊匹配
+	like, err := selector.GetDataList(ctx, &GetDataListParams{NameLike: "alpha"})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(like), 2)
+
+	// 下划线是 LIKE 通配符, 转义后 "axb" 不能被 "a_b" 匹配到
+	raw, err := selector.GetDataList(ctx, &GetDataListParams{NameLike: "list_axb"})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(raw), 1)
+	assert.Equal(t, raw[0].Name, "list_axb")
+
+	// "_" 被转义成字面量, 所以 "list_a_b" 不会再匹配 "list_axb"
+	literalUnderscore, err := selector.GetDataList(ctx, &GetDataListParams{NameLike: "list_a_b"})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(literalUnderscore), 0)
+
+	// "%" 同样按字面量处理, 不会退化成"匹配所有"
+	literalPercent, err := selector.GetDataList(ctx, &GetDataListParams{NameLike: "%"})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(literalPercent), 0)
+
+	// 游标分页：从第一行之后继续取
+	page1, err := selector.GetDataList(ctx, &GetDataListParams{NameLike: "list_", Limit: 2})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(page1), 2)
+
+	page2, err := selector.GetDataList(ctx,
+		&GetDataListParams{NameLike: "list_", LastID: page1[len(page1)-1].ID, Limit: 2})
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(page2), 1)
+	assert.True(t, page2[0].ID > page1[len(page1)-1].ID)
+
+	for _, id := range ids {
+		testDao, err := model.NewCclehuiTestADao(ctx, &model.CclehuiTestADao{ID: id}, false)
+		assert.Equal(t, err, nil)
+		assert.Equal(t, testDao.GetDaoBase().Delete(ctx), nil)
+	}
+}

@@ -80,3 +80,16 @@ err := dbClient.Transaction(ctx, func(ctx context.Context, tx *daoongorm.DBClien
 `NewDaoBaseNoLoad(model)` 给“已经用原生 SQL 查出数据”的场景：拿到 daoBase 后可以
 `Save`/`Delete`/`CacheKey`，但它的 `isReadOnly = true`，写操作会返回 `readOnly`。
 需要写就用 `NewDaoBase`。
+
+## 列表查询（selector）
+
+单行 DAO 只负责按主键读写一行，**列表/条件查询不属于 DaoBase**，写在 selector 里，直接用
+`ReadOnlyTable(...).Select("*").Where(...).Find(&list)`。
+
+- 分页用游标（`id > ?` + `ORDER BY id`），不要用 `OFFSET`：翻页期间删行会漏数据。
+- `Find` 出来的结构体没有 `daoBase`，要补 `NewDaoBaseNoLoad`，否则调用方拿到的对象不能
+  用统一的只读视图（写操作也不会报 `readOnly`）。
+- 参数收成一个 `XxxParams` struct：新增条件时不用改方法签名，调用方也看得懂每个字段含义。
+- `LIKE` 的用户输入必须转义 `%` / `_` / `\`，否则 `a_b` 会匹配 `axb`，`%` 会变成"匹配所有"。
+  统一用 `utils.SQLUtil.LikeContains(...)` + `escape '\'`，不要在 selector 里自己拼。
+
